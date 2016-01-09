@@ -115,7 +115,13 @@ class YoutubeApiBridge extends BridgeAbstract{
 		
 		// Retrieve information by playlist
 		else if (isset($param['playlist_id'])) {
-			$this->request = $param['playlist_id'];
+			
+			// The title is not part of the playlist request, but can be requested separately. We have to display the correct playlist name properly.
+			
+			$api->playlists = file_get_contents('https://www.googleapis.com/youtube/v3/playlists?part=snippet&id=' . $param['playlist_id'] . '&key=' . $api->key);
+			$playlists = json_decode($api->playlists);
+			
+			$this->request = htmlspecialchars($playlists->items[0]->snippet->title) . ' (' . htmlspecialchars($playlists->items[0]->snippet->channelTitle) . ')';
 			
 			// Reading playlist information is similar to how it works on a channel. We don't need a channel id though.
 			// For a playlist we always return all items. YouTube has a limit of 200 items per playlist, so the maximum is 4 calls to the API.
@@ -123,7 +129,7 @@ class YoutubeApiBridge extends BridgeAbstract{
 			$pageToken = '';
 			
 			do {
-				$api->playlistItems = file_get_contents('https://www.googleapis.com/youtube/v3/playlistItems?part=snippet%2CcontentDetails%2Cstatus&maxResults=50&playlistId=' . $this->request . '&pageToken=' . $pageToken . '&key=' . $api->key);
+				$api->playlistItems = file_get_contents('https://www.googleapis.com/youtube/v3/playlistItems?part=snippet%2CcontentDetails%2Cstatus&maxResults=50&playlistId=' . $param['playlist_id'] . '&pageToken=' . $pageToken . '&key=' . $api->key);
 				$playlistItems = json_decode($api->playlistItems);
 
 				foreach($playlistItems->items as $element) {
