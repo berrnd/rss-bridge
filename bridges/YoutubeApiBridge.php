@@ -1,46 +1,73 @@
 <?php
-/**
-* RssBridgeYouTubeApi
-* Returns the newest videos
-*
-* @name YouTube Data API Bridge
-* @homepage https://www.youtube.com/
-* @description Returns the newest videos by channel name or playlist id using the YouTube Data API
-* @maintainer logmanoriginal
-* @update 2015-07-13
-* @use1(k="YouTube Data API key", u="Channel name", i="Number of feed items")
-* @use3(k="YouTube Data API key", p="Playlist id")
-*/
+define('YOUTUBEAPI_LIMIT', 10); // The default limit
+
 class YoutubeApiBridge extends BridgeAbstract{
     
 	private $request;
+	
+	public function loadMetadatas() {
+	
+		$this->maintainer = "logmanoriginal";
+		$this->name = "Youtube API Bridge";
+		$this->uri = "https://www.youtube.com/";
+		$this->description = "Returns the newest videos by channel name or playlist id using the Youtube Data API";
+		$this->update = "2016-01-09";
+		
+		$this->parameters["Get channel with limit"] =
+		'[
+			{
+				"name" : "Youtube Data API key",
+				"identifier" : "key"
+			},
+			{
+				"name" : "Channel",
+				"identifier" : "channel"
+			},
+			{
+				"name" : "Limit",
+				"identifier" : "limit",
+				"type" : "number"
+			}
+		]';
+		$this->parameters["Get playlist"] =
+		'[
+			{
+				"name" : "Youtube Data API key",
+				"identifier" : "key"
+			},
+			{
+				"name" : "Playlist ID",
+				"identifier" : "playlist_id"
+			}
+		]';
+	
+	}
     
 	public function collectData(array $param){
 
-		$count = 0; // Number of feed items to return
-		
+		$limit = YOUTUBEAPI_LIMIT;
 		$api = new StdClass(); // Cache for the YouTube Data API
 		
 		// Load the API key
-		if (isset($param['k']) && $param['k'] != "") {
-			$api->key = $param['k'];
+		if (isset($param['key']) && $param['key'] != "") {
+			$api->key = $param['key'];
 		} else {
-			$this->returnError('You must specify a valid API key (?k=...)', 400);
+			$this->returnError('You must specify a valid API key (?key=...)', 400);
 		}
 		
-		// Load number of feed items (count)
-		if (isset($param['u']) && isset($param['i']) && is_numeric($param['i'])) {
-			$count = (int)$param['i'];
+		// Load number of feed items (limit)
+		if (isset($param['channel']) && isset($param['limit']) && is_numeric($param['limit'])) {
+			$limit = (int)$param['limit'];
 		} 
-		else if (isset($param['p'])) { 
+		else if (isset($param['playlist_id'])) { 
 			// not required
 		} else {
-			$this->returnError('You must specify the number of items to return (?i=...)', 400);
+			$limit = YOUTUBEAPI_LIMIT;
 		}
 		
 		// Retrieve information by channel name
-		if (isset($param['u'])) {
-			$this->request = $param['u'];
+		if (isset($param['channel'])) {
+			$this->request = $param['channel'];
 			
 			// We have to acquire the channel id first.
 			// For some reason an error from the API results in a false from file_get_contents, so we've to handle that.
@@ -51,17 +78,17 @@ class YoutubeApiBridge extends BridgeAbstract{
 			$channels = json_decode($api->channels);
 			
 			// Calculate number of requests (max. 50 items per request possible)
-			$req_count = (int)($count / 50);
+			$req_limit = (int)($limit / 50);
 			
-			if($count % 50 <> 0) {
-				$req_count++;
+			if($limit % 50 <> 0) {
+				$req_limit++;
 			}
 			
 			// Each page is identified by a page token, the first page has none.
 			$pageToken = '';
 			
 			// Go through all pages
-			for($i = 1; $i <= $req_count; $i++){
+			for($i = 1; $i <= $req_limit; $i++){
 				$api->playlistItems = file_get_contents('https://www.googleapis.com/youtube/v3/playlistItems?part=snippet%2CcontentDetails%2Cstatus&maxResults=50&playlistId=' . $channels->items[0]->contentDetails->relatedPlaylists->uploads . '&pageToken=' . $pageToken . '&key=' . $api->key);
 				$playlistItems = json_decode($api->playlistItems);
 				
@@ -79,7 +106,7 @@ class YoutubeApiBridge extends BridgeAbstract{
 					$this->items[] = $item;
 					
 					// Stop once the number of requested items is reached
-					if(count($this->items) >= $count) {
+					if(count($this->items) >= $limit) {
 						break;
 					}
 				}
@@ -87,8 +114,8 @@ class YoutubeApiBridge extends BridgeAbstract{
 		}
 		
 		// Retrieve information by playlist
-		else if (isset($param['p'])) {
-			$this->request = $param['p'];
+		else if (isset($param['playlist_id'])) {
+			$this->request = $param['playlist_id'];
 			
 			// Reading playlist information is similar to how it works on a channel. We don't need a channel id though.
 			// For a playlist we always return all items. YouTube has a limit of 200 items per playlist, so the maximum is 4 calls to the API.
@@ -120,7 +147,7 @@ class YoutubeApiBridge extends BridgeAbstract{
 	}
 
 	public function getName(){
-		return (!empty($this->request) ? $this->request .' - ' : '') . 'YouTube API Bridge';
+		return (!empty($this->request) ? $this->request .' - ' : '') . 'Youtube API Bridge';
 	}
 
 	public function getURI(){
