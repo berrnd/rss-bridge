@@ -92,9 +92,6 @@ class YoutubeApiBridge extends BridgeAbstract{
 				$api->playlistItems = file_get_contents('https://www.googleapis.com/youtube/v3/playlistItems?part=snippet%2CcontentDetails%2Cstatus&maxResults=50&playlistId=' . $channels->items[0]->contentDetails->relatedPlaylists->uploads . '&pageToken=' . $pageToken . '&key=' . $api->key);
 				$playlistItems = json_decode($api->playlistItems);
 				
-				// Get the next token
-				$pageToken = $playlistItems->nextPageToken;
-
 				foreach($playlistItems->items as $element) {
 					$item = new \Item();
 					$item->id = $element->contentDetails->videoId;
@@ -109,6 +106,13 @@ class YoutubeApiBridge extends BridgeAbstract{
 					if(count($this->items) >= $limit) {
 						break;
 					}
+				}
+				
+				// Get the next token or stop if none exists
+				if(isset($playlistItems->nextPageToken)){
+					$pageToken = $playlistItems->nextPageToken;
+				} else {
+					break;
 				}
 			}
 		}
