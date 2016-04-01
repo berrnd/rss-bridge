@@ -56,8 +56,28 @@ CARD;
 
 		}
 
+		$hasGlobalParameter = array_key_exists("global", $bridgeElement->parameters);
+		if($hasGlobalParameter) {
+			$globalParameters = json_decode($bridgeElement->parameters['global'], true);
+		}
+		
 		foreach($bridgeElement->parameters as $parameterName => $parameter)
 		{
+
+			$parameter = json_decode($parameter, true);
+
+			if(!is_numeric($parameterName) && $parameterName == "global") {
+
+				continue;
+				
+			}
+			
+			if($hasGlobalParameter) {
+
+				$parameter = array_merge($parameter, $globalParameters);
+
+			}
+
 			if(!is_numeric($parameterName)) {
 				$card .= '<h5>'.$parameterName.'</h5>' . PHP_EOL;
 			}
@@ -65,7 +85,6 @@ CARD;
 						<input type="hidden" name="action" value="display" />
 						<input type="hidden" name="bridge" value="' . $bridgeName . '" />' . PHP_EOL;
 
-			$parameter = json_decode($parameter, true);
 
 			foreach($parameter as $inputEntry) {
 
@@ -80,6 +99,11 @@ CARD;
 					$additionalInfoString .= " pattern=\"".$inputEntry['pattern']."\"";
 
 				}
+                if(isset($inputEntry['title'])) {
+                    
+                    $additionalInfoString .= " title=\"" .$inputEntry['title']."\"";
+                    
+                }
 				if(!isset($inputEntry['exampleValue'])) $inputEntry['exampleValue'] = "";
 
 				$idArg = 'arg-' . urlencode($bridgeName) . '-' . urlencode($parameterName) . '-' . urlencode($inputEntry['identifier']);
@@ -134,16 +158,16 @@ class HTMLSanitizer {
 	var $onlyKeepText;
 
 
-	public static $DEFAULT_CLEAR_TAGS = ["script", "iframe"];
+	public static $DEFAULT_CLEAR_TAGS = ["script", "iframe", "input", "form"];
 	public static $KEPT_ATTRIBUTES = ["title", "href", "src"];
 
-	const ONLY_TEXT = null;
+	public static $ONLY_TEXT = [];
 
-	function __construct($tags_to_remove = HTMLSanitizer::DEFAULT_CLEAR_TAGS, $kept_attributes = HTMLSanitizer::KEPT_ATTRIBUTES, $only_keep_text = HTMLSanitizer::ONLY_TEXT) {
+	function __construct($tags_to_remove = null, $kept_attributes = null, $only_keep_text = null) {
 
-		$this->tagsToRemove = $tags_to_remove;
-		$this->keptAttributes = $kept_attributes;
-		$this->onlyKeepText = $only_keep_text;
+		$this->tagsToRemove = $tags_to_remove == null ? HTMLSanitizer::$DEFAULT_CLEAR_TAGS : $tags_to_remove;
+		$this->keptAttributes = $kept_attributes == null ? HTMLSanitizer::$KEPT_ATTRIBUTES : $kept_attributes;
+		$this->onlyKeepText = $only_keep_text == null ? HTMLSanitizer::$ONLY_TEXT : $only_keep_text;
 
 	}
 
@@ -151,7 +175,7 @@ class HTMLSanitizer {
 
 		$htmlContent = str_get_html($textToSanitize);
 
-		foreach($htmlContent->find('*[!j_ai_pas_trouve_comment_tout_demander]') as $element) {
+		foreach($htmlContent->find('*[!b38fd2b1fe7f4747d6b1c1254ccd055e]') as $element) {
 			if(in_array($element->tag, $this->onlyKeepText)) {
 				$element->outertext = $element->plaintext;
 			} else if(in_array($element->tag, $this->tagsToRemove)) {
@@ -168,10 +192,12 @@ class HTMLSanitizer {
 	}
 	public static function defaultImageSrcTo($content, $server) {
         foreach($content->find('img') as $image) {
-            if(strpos($image->src, '/')==0) {
+
+			if(strpos($image->src, "http") == NULL && strpos($image->src, "//") == NULL && strpos($image->src, "data:") == NULL) {
                 $image->src = $server.$image->src;
-            }
+			}
         }
+		return $content;
     }
 
 }

@@ -23,7 +23,7 @@ class AtomFormat extends FormatAbstract{
         $extraInfos = $this->getExtraInfos();
         $title = xml_encode($extraInfos['name']);
         $uri = $extraInfos['uri'];
-        $icon = xml_encode('http://g.etfv.co/'. $uri .'?icon.jpg');
+        $icon = xml_encode('http://icons.better-idea.org/icon?url='. $uri .'&size=64');
         $uri = xml_encode($uri);
 
         $entries = '';
@@ -35,6 +35,15 @@ class AtomFormat extends FormatAbstract{
             $entryTimestamp = is_null($data->timestamp) ? '' : xml_encode(date(DATE_ATOM, $data->timestamp));
             // We prevent content from closing the CDATA too early.
             $entryContent = is_null($data->content) ? '' : '<![CDATA[' . $this->sanitizeHtml(str_replace(']]>','',$data->content)) . ']]>';
+
+			// We generate a list of the enclosure links
+			$entryEnclosures = "";
+            
+			foreach($data->enclosures as $enclosure) {
+
+				$entryEnclosures .= "<link rel=\"enclosure\" href=\"".$enclosure."\"></link>";
+
+			}
 
             $entries .= <<<EOD
 
@@ -48,6 +57,7 @@ class AtomFormat extends FormatAbstract{
         <id>{$entryUri}</id>
         <updated>{$entryTimestamp}</updated>
         <content type="html">{$entryContent}</content>
+		{$entryEnclosures}
     </entry>
 
 EOD;

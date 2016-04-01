@@ -59,6 +59,8 @@ The array can be a key-based array, but it is not necessary. The following synta
 $this->parameters[] = ...
 $this->parameters['First usage of my bridge'] = ...
 ```
+It is worth mentionning that you can also define a set of parameters that will be applied to every possible utilisation of your bridge.
+To do this, just create a parameter array with the `global` key.
 
 ### Format specifications
 
@@ -90,6 +92,7 @@ Parameter Name | Parameter values | Description
 type|text, number, list, checkbox| Type of the input, default is text
 required| true | Set this if you want your attribute to be required
 values| [ {"name" : option1Name, "value" : "option1Value"}, ...] | Values list, required with the 'list' type
+title| text | Will be shown as tooltip when mouse-hovering over the input
 
 #### Guidelines
 

@@ -1,16 +1,16 @@
 <?php
-//Based on https://github.com/mitsukarenai/twitterbridge-noapi
-class TwitterBridge extends BridgeAbstract{
+//Based on https://github.com/sebsauvage/rss-bridge/blob/master/bridges/TwitterBridgeClean.php by vinzv
+class TwitterBridgeCleanExtended extends BridgeAbstract{
 
     private $request;
 
 	public function loadMetadatas() {
 
-		$this->maintainer = "mitsukarenai";
-		$this->name = "Twitter Bridge";
+		$this->maintainer = "Max Mehl";
+		$this->name = "Twitter Bridge Clean Extended";
 		$this->uri = "http://twitter.com/";
-		$this->description = "Returns user timelines or keyword/hashtag search results (without using their API).";
-		$this->update = "2014-05-25";
+		$this->description = "Returns user timelines showing RTs correctly or search results for keywords/hashtags (without using their API).";
+		$this->update = "2016-01-27";
 
 		$this->parameters["By keyword or hashtag"] =
 		'[
@@ -63,15 +63,21 @@ class TwitterBridge extends BridgeAbstract{
 			$link->removeAttribute('class');
 			$link->removeAttribute('target');
 			$link->removeAttribute('title');
+			$link->removeAttribute('dir');
 		}
-            $item->content = str_replace('href="/', 'href="https://twitter.com/', strip_tags($tweet->find('p.js-tweet-text', 0)->innertext, '<a>'));	// extract tweet text
-            $item->title = $item->fullname . ' (@' . $item->username . ') | ' . strip_tags($item->content);
+            $item->content = str_replace('pic.twitter.com', 'https://pic.twitter.com', strip_tags($tweet->find('p.js-tweet-text', 0)->innertext));	// extract tweet text
+            if(isset($param['u'])) {
+              if($item->username != $param['u']) {
+                $item->content = '&#9851; @' . $item->username . ': ' . $item->content;
+              }
+            }
+            $item->title = $item->content;
             $this->items[] = $item;
         }
     }
 
     public function getName(){
-        return (!empty($this->request) ? $this->request .' - ' : '') .'Twitter Bridge';
+        return (!empty($this->request) ? $this->request : '');
     }
 
     public function getURI(){

@@ -14,7 +14,13 @@ TODO :
 
 date_default_timezone_set('UTC');
 error_reporting(0);
-//ini_set('display_errors','1'); error_reporting(E_ALL);  // For debugging only.
+
+if(file_exists("DEBUG")) {
+    
+    ini_set('display_errors','1'); error_reporting(E_ALL); //Report all errors
+    define("DEBUG", "true");
+    
+}
 
 require_once __DIR__ . '/lib/RssBridge.php';
 
@@ -54,8 +60,6 @@ if (!file_exists($whitelist_file)) {
 }
 else {
 	$whitelist_selection = explode("\n", file_get_contents($whitelist_file));
-	//Remove the last empty line.
-	array_pop($whitelist_selection);
 }
 
 Cache::purge();
@@ -86,7 +90,7 @@ try{
 
                     // Data retrieval
                     $bridge = Bridge::create($bridge);
-                    if(isset($_REQUEST["disable_cache"])) {
+                    if(defined("DEBUG")) {
                     } else {
                         $bridge->setCache($cache); // just add disable cache to your query to disable caching
                     }
