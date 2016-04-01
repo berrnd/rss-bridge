@@ -11,7 +11,7 @@ class YoutubeApiBridge extends BridgeAbstract{
 		$this->name = "Youtube API Bridge";
 		$this->uri = "https://www.youtube.com/";
 		$this->description = "Returns the newest videos by channel name or playlist id using the Youtube Data API";
-		$this->update = "2016-01-09";
+		$this->update = "2016-04-01";
 		
 		$this->parameters["Get channel with limit"] =
 		'[
