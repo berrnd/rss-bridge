@@ -11,7 +11,7 @@ class YoutubeApiBridge extends BridgeAbstract{
 		$this->name = "Youtube API Bridge";
 		$this->uri = "https://www.youtube.com/";
 		$this->description = "Returns the newest videos by channel name or playlist id using the Youtube Data API";
-		$this->update = "2016-04-01";
+		$this->update = "2016-08-01";
 		
 		$this->parameters["Get channel with limit"] =
 		'[
@@ -93,13 +93,20 @@ class YoutubeApiBridge extends BridgeAbstract{
 				$playlistItems = json_decode($api->playlistItems);
 				
 				foreach($playlistItems->items as $element) {
+					
+					// Store description in a temporary variable, the description might consist of multiple lines and can include hyperlinks:
+					$description = htmlspecialchars($element->snippet->description);
+					$description = nl2br($description);
+					// Todo: This regex does not cover the RFC3987, but it works for basic ones (no data and such)
+					$description = preg_replace('/(http[s]{0,1}\:\/\/[a-zA-Z0-9.\/]{4,})/ims', '<a href="$1" target="_blank">$1</a> ', $description);
+					
 					$item = new \Item();
 					$item->id = $element->contentDetails->videoId;
 					$item->uri = 'https://www.youtube.com/watch?v='.$item->id;
 					$item->thumbnailUri = $element->snippet->thumbnails->{'default'}->url;
 					$item->title = htmlspecialchars($element->snippet->title);
 					$item->timestamp = strtotime($element->snippet->publishedAt);
-					$item->content = '<a href="' . $item->uri . '"><img src="' . $item->thumbnailUri . '" /></a><br><a href="' . $item->uri . '">' . $item->title . '</a>';
+					$item->content = '<a href="' . $item->uri . '"><img src="' . $item->thumbnailUri . '" /></a><br><a href="' . $item->uri . '">' . $item->title . '</a><br><p>' . $description . '</p>';
 					$this->items[] = $item;
 					
 					// Stop once the number of requested items is reached
