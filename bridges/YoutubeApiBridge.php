@@ -172,7 +172,7 @@ class YoutubeApiBridge extends BridgeAbstract{
 	}
 
 	public function getCacheDuration(){
-		return 10800; // 3 hours
+		return 3600; // 1 hour
 	}
 }
 ?>
