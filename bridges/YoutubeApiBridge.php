@@ -2,7 +2,7 @@
 define('YOUTUBEAPI_LIMIT', 10); // The default limit
 
 class YoutubeApiBridge extends BridgeAbstract{
-    
+
 	private $request;
 	
 	public function loadMetadatas() {
@@ -11,38 +11,52 @@ class YoutubeApiBridge extends BridgeAbstract{
 		$this->name = "Youtube API Bridge";
 		$this->uri = "https://www.youtube.com/";
 		$this->description = "Returns the newest videos by channel name or playlist id using the Youtube Data API";
-		$this->update = "2016-08-01";
+		$this->update = "2016-08-15";
 		
-		$this->parameters["Get channel with limit"] =
+		$this->parameters['global'] =
 		'[
 			{
 				"name" : "Youtube Data API key",
-				"identifier" : "key"
-			},
+				"identifier" : "key",
+				"type" : "text",
+				"required" : true,
+				"title" : "Insert your Data API key here!"
+			}
+		]';
+
+		$this->parameters['Get channel with limit'] =
+		'[
 			{
 				"name" : "Channel",
-				"identifier" : "channel"
+				"identifier" : "channel",
+				"type" : "text",
+				"required" : true,
+				"title" : "Insert channel name here!",
+				"exampleValue" : "Youtube"
 			},
 			{
 				"name" : "Limit",
 				"identifier" : "limit",
-				"type" : "number"
+				"type" : "number",
+				"required" : false,
+				"title" : "Specifies the number of items to return for each request",
+				"defaultValue" : 10
 			}
 		]';
-		$this->parameters["Get playlist"] =
+
+		$this->parameters['Get playlist'] =
 		'[
 			{
-				"name" : "Youtube Data API key",
-				"identifier" : "key"
-			},
-			{
 				"name" : "Playlist ID",
-				"identifier" : "playlist_id"
+				"identifier" : "playlist_id",
+				"type" : "text",
+				"required" : true,
+				"title" : "Insert playlist ID here!",
+				"exampleValue" : "PLbpi6ZahtOH5v1L8oiDSetlj5TTM7tY7N"
 			}
 		]';
-	
 	}
-    
+
 	public function collectData(array $param){
 
 		$limit = YOUTUBEAPI_LIMIT;
@@ -68,7 +82,7 @@ class YoutubeApiBridge extends BridgeAbstract{
 		// Retrieve information by channel name
 		if (isset($param['channel'])) {
 			$this->request = $param['channel'];
-			
+
 			// We have to acquire the channel id first.
 			// For some reason an error from the API results in a false from file_get_contents, so we've to handle that.
 			$api->channels = file_get_contents('https://www.googleapis.com/youtube/v3/channels?part=contentDetails&forUsername=' . urlencode($this->request) . '&key=' . $api->key);
@@ -91,7 +105,7 @@ class YoutubeApiBridge extends BridgeAbstract{
 			for($i = 1; $i <= $req_limit; $i++){
 				$api->playlistItems = file_get_contents('https://www.googleapis.com/youtube/v3/playlistItems?part=snippet%2CcontentDetails%2Cstatus&maxResults=50&playlistId=' . $channels->items[0]->contentDetails->relatedPlaylists->uploads . '&pageToken=' . $pageToken . '&key=' . $api->key);
 				$playlistItems = json_decode($api->playlistItems);
-				
+
 				foreach($playlistItems->items as $element) {
 					
 					// Store description in a temporary variable, the description might consist of multiple lines and can include hyperlinks:
@@ -100,13 +114,14 @@ class YoutubeApiBridge extends BridgeAbstract{
 					// Todo: This regex does not cover the RFC3987, but it works for basic ones (no data and such)
 					$description = preg_replace('/(http[s]{0,1}\:\/\/[a-zA-Z0-9.\/]{4,})/ims', '<a href="$1" target="_blank">$1</a> ', $description);
 					
+					$thumbnail = $element->snippet->thumbnails->{'default'}->url;
+
 					$item = new \Item();
 					$item->id = $element->contentDetails->videoId;
 					$item->uri = 'https://www.youtube.com/watch?v='.$item->id;
-					$item->thumbnailUri = $element->snippet->thumbnails->{'default'}->url;
 					$item->title = htmlspecialchars($element->snippet->title);
 					$item->timestamp = strtotime($element->snippet->publishedAt);
-					$item->content = '<a href="' . $item->uri . '"><img src="' . $item->thumbnailUri . '" /></a><br><a href="' . $item->uri . '">' . $item->title . '</a><br><p>' . $description . '</p>';
+					$item->content = '<a href="' . $item->uri . '"><img src="' . $thumbnail . '" /></a><br><a href="' . $item->uri . '">' . $item->title . '</a><br><p>' . $description . '</p>';
 					$this->items[] = $item;
 					
 					// Stop once the number of requested items is reached
@@ -128,7 +143,6 @@ class YoutubeApiBridge extends BridgeAbstract{
 		else if (isset($param['playlist_id'])) {
 			
 			// The title is not part of the playlist request, but can be requested separately. We have to display the correct playlist name properly.
-			
 			$api->playlists = file_get_contents('https://www.googleapis.com/youtube/v3/playlists?part=snippet&id=' . $param['playlist_id'] . '&key=' . $api->key);
 			$playlists = json_decode($api->playlists);
 			
@@ -136,7 +150,6 @@ class YoutubeApiBridge extends BridgeAbstract{
 			
 			// Reading playlist information is similar to how it works on a channel. We don't need a channel id though.
 			// For a playlist we always return all items. YouTube has a limit of 200 items per playlist, so the maximum is 4 calls to the API.
-			
 			$pageToken = '';
 			
 			do {
@@ -151,13 +164,14 @@ class YoutubeApiBridge extends BridgeAbstract{
 					// Todo: This regex does not cover the RFC3987, but it works for basic ones (no data and such)
 					$description = preg_replace('/(http[s]{0,1}\:\/\/[a-zA-Z0-9.\/]{4,})/ims', '<a href="$1" target="_blank">$1</a> ', $description);
 					
+					$thumbnail = $element->snippet->thumbnails->{'default'}->url;
+
 					$item = new \Item();
 					$item->id = $element->contentDetails->videoId;
 					$item->uri = 'https://www.youtube.com/watch?v='.$item->id;
-					$item->thumbnailUri = $element->snippet->thumbnails->{'default'}->url;
 					$item->title = htmlspecialchars($element->snippet->title);
 					$item->timestamp = strtotime($element->snippet->publishedAt);
-					$item->content = '<a href="' . $item->uri . '"><img src="' . $item->thumbnailUri . '" /></a><br><a href="' . $item->uri . '">' . $item->title . '</a><br><p>' . $description . '</p>';
+					$item->content = '<a href="' . $item->uri . '"><img src="' . $thumbnail . '" /></a><br><a href="' . $item->uri . '">' . $item->title . '</a><br><p>' . $description . '</p>';
 					$this->items[] = $item;
 				}
 				
@@ -173,13 +187,4 @@ class YoutubeApiBridge extends BridgeAbstract{
 	public function getName(){
 		return (!empty($this->request) ? $this->request .' - ' : '') . 'Youtube API Bridge';
 	}
-
-	public function getURI(){
-		return 'https://www.youtube.com/';
-	}
-
-	public function getCacheDuration(){
-		return 3600; // 1 hour
-	}
 }
-?>
