@@ -7,12 +7,12 @@ class BlaguesDeMerdeBridge extends BridgeAbstract{
 		$this->name = "Blagues De Merde";
 		$this->uri = "http://www.blaguesdemerde.fr/";
 		$this->description = "Blagues De Merde";
-		$this->update = "16/10/2013";
+		$this->update = "2016-08-09";
 
 	}
 
     public function collectData(array $param){
-        $html = file_get_html('http://www.blaguesdemerde.fr/') or $this->returnError('Could not request BDM.', 404);
+        $html = $this->file_get_html('http://www.blaguesdemerde.fr/') or $this->returnError('Could not request BDM.', 404);
     
         foreach($html->find('article.joke_contener') as $element) {
             $item = new Item();
@@ -26,25 +26,14 @@ class BlaguesDeMerdeBridge extends BridgeAbstract{
                 $date = $element->find("li.bdm_date",0)->innertext;
                 $time = mktime(0, 0, 0, substr($date, 3, 2), substr($date, 0, 2), substr($date, 6, 4));
                 $item->timestamp = $time;
-                $item->name = $element->find("li.bdm_pseudo",0)->innertext;;
+                $item->author = $element->find("li.bdm_pseudo",0)->innertext;;
                 $this->items[] = $item;
             }
         }
     }
 
-    public function getName(){
-        return 'blaguesdemerde';
-    }
-
-    public function getURI(){
-        return 'http://www.blaguesdemerde.fr/';
-    }
-
     public function getCacheDuration(){
         return 7200; // 2h hours
-    }
-    public function getDescription(){
-        return "Blagues De Merde via rss-bridge";
     }
 }
 ?>

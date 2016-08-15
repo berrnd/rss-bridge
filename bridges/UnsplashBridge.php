@@ -7,7 +7,7 @@ class UnsplashBridge extends BridgeAbstract {
 		$this->name = "Unsplash Bridge";
 		$this->uri = "http://unsplash.com/";
 		$this->description = "Returns the latests photos from Unsplash";
-		$this->update = "2015-03-02";
+		$this->update = "2016-08-09";
 
 		$this->parameters[] =
 		'[
@@ -44,7 +44,7 @@ class UnsplashBridge extends BridgeAbstract {
 
         for ($page = 1; $page <= $lastpage; $page++) {
             $link = $baseUri.'/grid?page='.$page;
-            $html = file_get_html($link) or $this->returnError('No results for this query.', 404);
+            $html = $this->file_get_html($link) or $this->returnError('No results for this query.', 404);
 
             if ($page === 1) {
                 preg_match('/=(\d+)$/', $html->find('.pagination > a[!class]', -1)->href, $matches);
@@ -61,8 +61,7 @@ class UnsplashBridge extends BridgeAbstract {
                                          $thumbnail->src).'.jpg';           // '.jpg' only for format hint
                 $item->timestamp = time();
                 $item->title = $thumbnail->alt;
-                $item->thumbnailUri = $thumbnail->src;
-                $item->content = $item->title.'<br><a href="'.$item->uri.'"><img src="'.$item->thumbnailUri.'" /></a>';
+                $item->content = $item->title.'<br><a href="'.$item->uri.'"><img src="'.$thumbnail->src.'" /></a>';
                 $this->items[] = $item;
 
                 $num++;
@@ -70,14 +69,6 @@ class UnsplashBridge extends BridgeAbstract {
                     break 2;
             }
         }
-    }
-
-    public function getName(){
-        return 'Unsplash';
-    }
-
-    public function getURI(){
-        return 'http://unsplash.com';
     }
 
     public function getCacheDuration(){

@@ -7,14 +7,14 @@ class FacebookBridge extends BridgeAbstract{
 		$this->name = "Facebook";
 		$this->uri = "http://www.facebook.com/";
 		$this->description = "Input a page title or a profile log. For a profile log, please insert the parameter as follow : myExamplePage/132621766841117";
-		$this->update = "23/10/2015";
+		$this->update = "2016-08-15";
 
 		$this->parameters[] =
 		'[
 			{
 				"name" : "Username",
 				"identifier" : "u",
-				"required" : "required"
+				"required" : true
 			}
 		]';
 	}
@@ -109,9 +109,9 @@ class FacebookBridge extends BridgeAbstract{
 		if (is_null($html)) {
 			if (isset($param['u'])) {
 				if (!strpos($param['u'], "/")) {
-					$html = file_get_html('https://www.facebook.com/'.urlencode($param['u']).'?_fb_noscript=1') or $this->returnError('No results for this query.', 404);
+					$html = $this->file_get_html('https://www.facebook.com/'.urlencode($param['u']).'?_fb_noscript=1') or $this->returnError('No results for this query.', 404);
 				} else {
-					$html = file_get_html('https://www.facebook.com/pages/'.$param['u'].'?_fb_noscript=1') or $this->returnError('No results for this query.', 404);
+					$html = $this->file_get_html('https://www.facebook.com/pages/'.$param['u'].'?_fb_noscript=1') or $this->returnError('No results for this query.', 404);
 				}
 			} else {
 				$this->returnError('You must specify a Facebook username.', 400);
@@ -146,7 +146,7 @@ class FacebookBridge extends BridgeAbstract{
 		}
 
 		//No captcha? We can carry on retrieving page contents :)
-		$element = $html->find('[id^=PagePostsSectionPagelet-]')[0]->children(0)->children(0);
+		$element = $html->find('#pagelet_timeline_main_column')[0]->children(0)->children(0)->children(0)->next_sibling()->children(0);
 
 		if(isset($element)) {
 
@@ -158,7 +158,7 @@ class FacebookBridge extends BridgeAbstract{
 			
 				$item = new \Item();
 
-				if($post->hasAttribute("data-time")) {
+				if (count($post->find('abbr')) > 0) {
 
 					//Retrieve post contents
 					$content = preg_replace('/(?i)><div class=\"clearfix([^>]+)>(.+?)div\ class=\"userContent\"/i', '', $post);
@@ -197,14 +197,8 @@ class FacebookBridge extends BridgeAbstract{
 					if (strlen($title) > 64)
 						$title = substr($title, 0, strpos(wordwrap($title, 64), "\n")).'...';
 
-					//Use first image as thumbnail if available, or profile pic fallback
-					$thumbnail = $post->find('img', 1)->src;
-					if (strlen($thumbnail) == 0)
-						$thumbnail = $profilePic;
-
 					//Build and add final item
 					$item->uri = 'https://facebook.com'.$post->find('abbr')[0]->parent()->getAttribute('href');
-					$item->thumbnailUri = $thumbnail;
 					$item->content = $content;
 					$item->title = $title;
 					$item->author = $author;
@@ -223,10 +217,6 @@ class FacebookBridge extends BridgeAbstract{
 
 	public function getName() {
 		return (isset($this->name) ? $this->name.' - ' : '').'Facebook Bridge';
-	}
-
-	public function getURI() {
-		return 'http://facebook.com';
 	}
 
 	public function getCacheDuration() {

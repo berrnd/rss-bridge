@@ -7,7 +7,7 @@ class EZTVBridge extends BridgeAbstract{
 		$this->name = "EZTV";
 		$this->uri = "https://eztv.ch/";
 		$this->description = "Returns list of *recent* torrents for a specific show on EZTV. Get showID from URLs in https://eztv.ch/shows/showID/show-full-name.";
-		$this->update = "2014-01-20";
+		$this->update = "2016-08-09";
 
 		$this->parameters[] =
 		'[
@@ -44,7 +44,7 @@ class EZTVBridge extends BridgeAbstract{
         foreach($showList as $showID){
 
             // Get show page
-            $html = file_get_html('https://eztv.ch/shows/'.rawurlencode($showID).'/') or $this->returnError('Could not request EZTV for id "'.$showID.'"', 404);
+            $html = $this->file_get_html('https://eztv.ch/shows/'.rawurlencode($showID).'/') or $this->returnError('Could not request EZTV for id "'.$showID.'"', 404);
 
             // Loop on each element that look like an episode entry...
             foreach($html->find('.forum_header_border') as $element) {
@@ -72,16 +72,4 @@ class EZTVBridge extends BridgeAbstract{
             }
         }
 	}
-    
-    public function getName(){
-        return 'EZTV';
-    }
-
-    public function getURI(){
-        return 'https://eztv.ch/';
-    }
-
-    public function getCacheDuration(){
-        return 3600; // 1 hour
-    }
 }

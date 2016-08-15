@@ -9,7 +9,7 @@ class GiphyBridge extends BridgeAbstract{
 		$this->name = "Giphy Bridge";
 		$this->uri = "http://giphy.com/";
 		$this->description = "Bridge for giphy.com";
-		$this->update = "2014-12-05";
+		$this->update = "2016-08-09";
 
 		$this->parameters["By tag"] =
 		'[
@@ -33,7 +33,7 @@ class GiphyBridge extends BridgeAbstract{
 		$html = ''; 
         $base_url = 'http://giphy.com';
 		if (isset($param['s'])) {   /* keyword search mode */
-			$html = file_get_html($base_url.'/search/'.urlencode($param['s'].'/')) or $this->returnError('No results for this query.', 404);
+			$html = $this->file_get_html($base_url.'/search/'.urlencode($param['s'].'/')) or $this->returnError('No results for this query.', 404);
 		}
 		else {
 			$this->returnError('You must specify a search worf (?s=...).', 400);
@@ -51,7 +51,7 @@ class GiphyBridge extends BridgeAbstract{
                 $node = $entry->first_child();                                
                 $href = $node->getAttribute('href');                
                 
-                $html2 = file_get_html($base_url . $href) or $this->returnError('No results for this query.', 404);                                
+                $html2 = $this->file_get_html($base_url . $href) or $this->returnError('No results for this query.', 404);                                
                 $figure = $html2->getElementByTagName('figure');
                 $img = $figure->firstChild();
                 $caption = $figure->lastChild();
@@ -81,19 +81,7 @@ class GiphyBridge extends BridgeAbstract{
         }
 	}
 
-	public function getName(){
-		return 'Giphy Bridge';
-	}
-
-	public function getURI(){
-		return 'http://giphy.com/';
-	}
-
 	public function getCacheDuration(){
 		return 300; // 5 minutes
-	}
-    
-	public function getUsername(){
-		return $this->items[0]->username;
 	}
 }

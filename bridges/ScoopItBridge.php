@@ -7,7 +7,7 @@ class ScoopItBridge extends BridgeAbstract{
 		$this->name = "ScoopIt";
 		$this->uri = "http://www.scoop.it";
 		$this->description = "Returns most recent results from ScoopIt.";
-		$this->update = "2014-06-13";
+		$this->update = "2016-08-09";
 
 		$this->parameters[] =
 		'[
@@ -25,7 +25,7 @@ class ScoopItBridge extends BridgeAbstract{
             $this->request = $param['u'];
             $link = 'http://scoop.it/search?q=' .urlencode($this->request);
             
-            $html = file_get_html($link) or $this->returnError('Could not request ScoopIt. for : ' . $link , 404);
+            $html = $this->file_get_html($link) or $this->returnError('Could not request ScoopIt. for : ' . $link , 404);
             
             foreach($html->find('div.post-view') as $element) {
                 $item = new Item();
@@ -37,14 +37,6 @@ class ScoopItBridge extends BridgeAbstract{
         } else {
             $this->returnError('You must specify a keyword', 404);
         }
-    }
-
-    public function getName(){
-        return 'ScooptIt';
-    }
-
-    public function getURI(){
-        return 'http://Scoop.it';
     }
 
     public function getCacheDuration(){

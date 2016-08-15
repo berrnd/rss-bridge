@@ -7,7 +7,7 @@ class Releases3DSBridge extends BridgeAbstract {
 		$this->name = "3DS Scene Releases";
 		$this->uri = "http://www.3dsdb.com/";
 		$this->description = "Returns the newest scene releases.";
-		$this->update = "2015-09-17";
+		$this->update = "2016-08-09";
 
 	}
 
@@ -66,7 +66,7 @@ class Releases3DSBridge extends BridgeAbstract {
                         //Retrieve cover art and short desc from IGN?
                         $ignResult = false; $ignDescription = ''; $ignLink = ''; $ignDate = time(); $ignCoverArt = '';
                         $ignSearchUrl = 'http://www.ign.com/search?q='.urlencode($name);
-                        if ($ignResult = file_get_html($ignSearchUrl)) {
+                        if ($ignResult = $this->file_get_html($ignSearchUrl)) {
                             $ignCoverArt = $ignResult->find('div.search-item-media', 0)->find('img', 0)->src;
                             $ignDesc = $ignResult->find('div.search-item-description', 0)->plaintext;
                             $ignLink = $ignResult->find('div.search-item-sub-title', 0)->find('a', 1)->href;
@@ -108,7 +108,6 @@ class Releases3DSBridge extends BridgeAbstract {
                         $item->title = $name;
                         $item->author = $publisher;
                         $item->timestamp = $ignDate;
-                        $item->thumbnailUri = $ignCoverArt;
                         $item->uri = empty($ignLink) ? $searchLinkDuckDuckGo : $ignLink;
                         $item->content = $ignDescription.$releaseDescription.$releaseSearchLinks;
                         $this->items[] = $item;
@@ -117,14 +116,6 @@ class Releases3DSBridge extends BridgeAbstract {
                 }
             }
         }
-    }
-
-    public function getName() {
-        return '3DS Scene Releases';
-    }
-
-    public function getURI() {
-        return 'http://www.3dsdb.com/';
     }
 
     public function getCacheDuration() {

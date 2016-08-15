@@ -10,7 +10,7 @@ class SuperbWallpapersBridge extends BridgeAbstract {
 		$this->name = "Superb Wallpapers Bridge";
 		$this->uri = "http://www.superbwallpapers.com/";
 		$this->description = "Returns the latests wallpapers from SuperbWallpapers";
-		$this->update = "2015-04-08";
+		$this->update = "2016-08-09";
 
 		$this->parameters[] =
 		'[
@@ -47,12 +47,12 @@ class SuperbWallpapersBridge extends BridgeAbstract {
 
         // Get last page number
         $link = $baseUri.'/'.$this->category.'/9999.html';
-        $html = file_get_html($link);
+        $html = $this->file_get_html($link);
         $lastpage = min($html->find('.paging .cpage', 0)->innertext(), ceil($max/36));
 
         for ($page = 1; $page <= $lastpage; $page++) {
             $link = $baseUri.'/'.$this->category.'/'.$page.'.html';
-            $html = file_get_html($link) or $this->returnError('No results for this query.', 404);
+            $html = $this->file_get_html($link) or $this->returnError('No results for this query.', 404);
 
             foreach($html->find('.wpl .i a') as $element) {
                 $thumbnail = $element->find('img', 0);
@@ -61,7 +61,6 @@ class SuperbWallpapersBridge extends BridgeAbstract {
                 $item->uri = str_replace('200x125', $this->resolution, $thumbnail->src);
                 $item->timestamp = time();
                 $item->title = $element->title;
-                $item->thumbnailUri = $thumbnail->src;
                 $item->content = $item->title.'<br><a href="'.$item->uri.'">'.$thumbnail.'</a>';
                 $this->items[] = $item;
 
@@ -74,10 +73,6 @@ class SuperbWallpapersBridge extends BridgeAbstract {
 
     public function getName(){
         return 'HDWallpapers - '.$this->category.' ['.$this->resolution.']';
-    }
-
-    public function getURI(){
-        return 'http://www.superbwallpapers.com';
     }
 
     public function getCacheDuration(){

@@ -7,13 +7,13 @@ class NasaApodBridge extends BridgeAbstract{
 		$this->name = "NASA APOD Bridge";
 		$this->uri = "http://apod.nasa.gov/apod/astropix.html";
 		$this->description = "Returns the 3 latest NASA APOD pictures and explanations";
-		$this->update = "2014-08-27";
+		$this->update = "2016-08-09";
 
 	}
 
   public function collectData(array $param) {
 
-    $html = file_get_html('http://apod.nasa.gov/apod/archivepix.html') or $this->returnError('Error while downloading the website content', 404);
+    $html = $this->file_get_html('http://apod.nasa.gov/apod/archivepix.html') or $this->returnError('Error while downloading the website content', 404);
     $list = explode("<br>", $html->find('b', 0)->innertext);
 
     for($i = 0; $i < 3;$i++)
@@ -25,7 +25,7 @@ class NasaApodBridge extends BridgeAbstract{
       $uri = 'http://apod.nasa.gov/apod/'.$uri_page;
       $item->uri = $uri;
 
-      $picture_html = file_get_html($uri);
+      $picture_html = $this->file_get_html($uri);
       $picture_html_string = $picture_html->innertext;
 
       //Extract image and explanation
@@ -43,14 +43,6 @@ class NasaApodBridge extends BridgeAbstract{
       $item->title = $picture_html->find('b',0)->innertext;
       $this->items[] = $item;
     }
-  }
-
-  public function getName(){
-    return 'NASA APOD';
-  }
-
-  public function getURI(){
-    return 'http://apod.nasa.gov/apod/astropix.html';
   }
 
   public function getCacheDuration(){

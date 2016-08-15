@@ -7,7 +7,7 @@ class Rule34Bridge extends BridgeAbstract{
 		$this->name = "Rule34";
 		$this->uri = "http://rule34.xxx/";
 		$this->description = "Returns images from given page";
-		$this->update = "2014-05-25";
+		$this->update = "2016-08-09";
 
 		$this->parameters[] =
 		'[
@@ -33,7 +33,7 @@ class Rule34Bridge extends BridgeAbstract{
         if (isset($param['t'])) { 
             $tags = urlencode($param['t']); 
         }
-        $html = file_get_html("http://rule34.xxx/index.php?page=post&s=list&tags=$tags&pid=$page") or $this->returnError('Could not request Rule34.', 404);
+        $html = $this->file_get_html("http://rule34.xxx/index.php?page=post&s=list&tags=$tags&pid=$page") or $this->returnError('Could not request Rule34.', 404);
 
 
 	foreach($html->find('div[class=content] span') as $element) {
@@ -41,20 +41,12 @@ class Rule34Bridge extends BridgeAbstract{
 		$item->uri = 'http://rule34.xxx/'.$element->find('a', 0)->href;
 		$item->postid = (int)preg_replace("/[^0-9]/",'', $element->getAttribute('id'));	
 		$item->timestamp = time();
-		$item->thumbnailUri = $element->find('img', 0)->src;
+		$thumbnailUri = $element->find('img', 0)->src;
 		$item->tags = $element->find('img', 0)->getAttribute('alt');
 		$item->title = 'Rule34 | '.$item->postid;
-		$item->content = '<a href="' . $item->uri . '"><img src="' . $item->thumbnailUri . '" /></a><br>Tags: '.$item->tags;
+		$item->content = '<a href="' . $item->uri . '"><img src="' . $thumbnailUri . '" /></a><br>Tags: '.$item->tags;
 		$this->items[] = $item; 
 	}
-    }
-
-    public function getName(){
-        return 'Rule34';
-    }
-
-    public function getURI(){
-        return 'http://rule34.xxx/';
     }
 
     public function getCacheDuration(){

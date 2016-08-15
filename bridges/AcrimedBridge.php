@@ -7,7 +7,7 @@ class AcrimedBridge extends RssExpander{
 			$this->name = "Acrimed Bridge";
 			$this->uri = "http://www.acrimed.org/";
 			$this->description = "Returns the newest articles.";
-			$this->update = "2014-05-25";
+			$this->update = "2016-08-09";
 
 		}
 
@@ -29,7 +29,7 @@ class AcrimedBridge extends RssExpander{
         	$item->title = trim($newsItem->title);
         	$item->timestamp = strtotime($dc->date);
 
-			$articlePage = file_get_html($newsItem->link);
+			$articlePage = $this->file_get_html($newsItem->link);
 			$article = $hs->sanitize($articlePage->find('article.article1', 0)->innertext);
 			$article = HTMLSanitizer::defaultImageSrcTo($article, "http://www.acrimed.org/");
 
@@ -39,18 +39,6 @@ class AcrimedBridge extends RssExpander{
 			return $item;
 
 		}
-
-	public function getName() {
-
-		return "Acrimed Bridge";
-
-	}
-
-	public function getURI() {
-
-		return "http://www.acrimed.org/";
-
-	}
 
     public function getCacheDuration(){
         return 4800; // 2 hours

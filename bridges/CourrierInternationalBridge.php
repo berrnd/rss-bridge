@@ -4,10 +4,10 @@ class CourrierInternationalBridge extends BridgeAbstract{
 	public function loadMetadatas() {
 
 		$this->maintainer = "teromene";
-		$this->name = "CourrierInternational";
+		$this->name = "Courrier International Bridge";
 		$this->uri = "http://CourrierInternational.fr/";
 		$this->description = "Courrier International bridge";
-		$this->update = "01/09/2015";
+		$this->update = "2016-08-09";
 
 	}
 
@@ -15,7 +15,7 @@ class CourrierInternationalBridge extends BridgeAbstract{
 	
         $html = '';
 
-        $html = file_get_html('http://www.courrierinternational.com/') or $this->returnError('Error.', 500);
+        $html = $this->file_get_html('http://www.courrierinternational.com/') or $this->returnError('Error.', 500);
 	
 
 	
@@ -33,7 +33,7 @@ class CourrierInternationalBridge extends BridgeAbstract{
                 $item->uri = "http://courrierinternational.fr/".$item->uri;
             }
         
-            $page = file_get_html($item->uri);
+            $page = $this->file_get_html($item->uri);
 
             $cleaner = new HTMLSanitizer();
         
@@ -59,14 +59,6 @@ class CourrierInternationalBridge extends BridgeAbstract{
 
 
 
-    }
-
-    public function getName(){
-        return 'Courrier International Bridge';
-    }
-
-    public function getURI(){
-        return 'http://courrierinternational.com';
     }
 
     public function getCacheDuration(){

@@ -23,14 +23,6 @@ abstract class BridgeAbstract implements BridgeInterface{
 	public $maintainer = 'No maintainer';
 	public $parameters = array();
 
-	/**
-	* Loads the Bridge Metadatas
-	*/
-	public function loadMetadatas() {
-
-
-	}
-
     /**
     * Launch probative exception
     */
@@ -75,6 +67,20 @@ abstract class BridgeAbstract implements BridgeInterface{
     }
 
     /**
+    * Define default bridge name
+    */ 
+    public function getName(){
+        return $this->name;
+    }
+
+    /**
+    * Define default bridge URI
+    */
+    public function getURI(){
+        return $this->uri;
+    }
+
+    /**
     * Define default duraction for cache
     */
     public function getCacheDuration(){
@@ -88,6 +94,31 @@ abstract class BridgeAbstract implements BridgeInterface{
         $this->cache = $cache;
 
         return $this;
+    }
+
+    protected function file_get_html($url, $use_include_path = false, $context=null, $offset = -1, $maxLen=-1, $lowercase = true, $forceTagsClosed=true, $target_charset = DEFAULT_TARGET_CHARSET, $stripRN=true, $defaultBRText=DEFAULT_BR_TEXT, $defaultSpanText=DEFAULT_SPAN_TEXT){
+      $contextOptions = array(
+        'http' => array(
+          'user_agent'=>ini_get('user_agent')
+        ),
+      );
+
+      if(defined('PROXY_URL')) {
+        $contextOptions['http']['proxy'] = PROXY_URL;
+        $contextOptions['http']['request_fulluri'] = true;
+
+        if(is_null($context)){
+          $context = stream_context_create($contextOptions);
+        } else {
+          $prevContext=$context;
+          if(!stream_context_set_option($context,$contextOptions)){
+            $context=$prevContext;
+          };
+        }
+      }
+      return file_get_html($url,$use_include_path,$context,$offset,$maxLen,
+        $lowercase,$forceTagsClosed,$target_charset,$stripRN,$defaultBRText,
+        $defaultSpanText);
     }
 
 }
@@ -285,7 +316,7 @@ class Bridge{
 		return $listBridge;
 	}
 	static function isWhitelisted( $whitelist, $name ) {
-	if(in_array("$name", $whitelist) or in_array("$name.php", $whitelist))
+	if(in_array("$name", $whitelist) or in_array("$name.php", $whitelist) or count($whitelist) === 1 and $whitelist[0] === '*')
 		return TRUE;
 	else
 		return FALSE;
@@ -340,33 +371,9 @@ abstract class RssExpander extends HttpCachingBridgeAbstract{
      */
     abstract protected function parseRSSItem($item);
 
-
-    public function getName(){
-        return $this->name;
-    }
-
-    public function getURI(){
-        return $this->uri;
-    }
-
     public function getDescription() {
         return $this->description;
     }
 }
 
-function advanced_file_get_contents($url) {
 
-	if(defined('PROXY_URL')) {
-		$context = array(
-			'http' => array(
-				'proxy' => PROXY_URL,
-				'request_fulluri' => true,
-			),
-		);
-		$context = stream_context_create($context);
-		return file_get_contents($url, false, $context);
-	} else {
-		return file_get_contents($url);
-	}
-
-}

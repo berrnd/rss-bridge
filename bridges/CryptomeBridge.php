@@ -7,7 +7,7 @@ class CryptomeBridge extends BridgeAbstract{
 		$this->name = "Cryptome";
 		$this->uri = "http://cryptome.org/";
 		$this->description = "Returns the N most recent documents.";
-		$this->update = "";
+		$this->update = "2016-08-09";
 
 		$this->parameters[] =
 		'[
@@ -28,7 +28,7 @@ class CryptomeBridge extends BridgeAbstract{
         // If you want HTTPS access instead, uncomment the following line:
         //$link = 'https://secure.netsolhost.com/cryptome.org/';
 
-        $html = file_get_html($link) or $this->returnError('Could not request Cryptome.', 404);
+        $html = $this->file_get_html($link) or $this->returnError('Could not request Cryptome.', 404);
         if (!empty($param['n'])) {   /* number of documents */
             $num = min(max(1, $param['n']+0), $num);
         }
@@ -44,14 +44,6 @@ class CryptomeBridge extends BridgeAbstract{
             }
             break;
         }
-    }
-
-    public function getName(){
-        return 'Cryptome';
-    }
-
-    public function getURI(){
-        return 'https://secure.netsolhost.com/cryptome.org/';
     }
 
     public function getCacheDuration(){

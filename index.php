@@ -15,11 +15,30 @@ TODO :
 date_default_timezone_set('UTC');
 error_reporting(0);
 
-if(file_exists("DEBUG")) {
-    
-    ini_set('display_errors','1'); error_reporting(E_ALL); //Report all errors
-    define("DEBUG", "true");
-    
+/*
+  Create a file named 'DEBUG' for enabling debug mode.
+  For further security, you may put whitelisted IP addresses
+  in the 'DEBUG' file, one IP per line. Empty file allows anyone (!).
+  Debugging allows displaying PHP error messages and bypasses the cache: this can allow a malicious
+  client to retrieve data about your server and hammer a provider throught your rss-bridge instance.
+*/
+if (file_exists('DEBUG')) {
+    $debug_enabled = true;
+    $debug_whitelist = trim(file_get_contents('DEBUG'));
+    if (strlen($debug_whitelist) > 0) {
+        $debug_enabled = false;
+        foreach (explode("\n", $debug_whitelist) as $allowed_ip) {
+            if (trim($allowed_ip) === $_SERVER['REMOTE_ADDR']) {
+                $debug_enabled = true;
+                break;
+            }
+        }
+    }
+    if ($debug_enabled) {
+        ini_set('display_errors', '1');
+        error_reporting(E_ALL);
+        define('DEBUG', 'true');
+    }
 }
 
 require_once __DIR__ . '/lib/RssBridge.php';
@@ -48,9 +67,7 @@ $whitelist_default = array(
 	"PinterestBridge",
 	"ScmbBridge",
 	"TwitterBridge",
-	"WikipediaENBridge",
-	"WikipediaEOBridge",
-	"WikipediaFRBridge",
+	"WikipediaBridge",
 	"YoutubeBridge");
 
 if (!file_exists($whitelist_file)) {
@@ -94,8 +111,8 @@ try{
                     } else {
                         $bridge->setCache($cache); // just add disable cache to your query to disable caching
                     }
-                    $bridge->setDatas($_REQUEST);
 					$bridge->loadMetadatas();
+                    $bridge->setDatas($_REQUEST);
                     // Data transformation
                     try {
 		                $format = Format::create($format);
@@ -163,11 +180,20 @@ $formats = Format::searchInformation();
 				$inactiveBridges .= HTMLUtils::displayBridgeCard($bridgeName, $formats, false) . PHP_EOL;
 			}
 		}
-		echo '<hr />' . $inactiveBridges;
+		echo $inactiveBridges;
 	?>
-    <footer>
-		<?= $activeFoundBridgeCount; ?>/<?= count($bridgeList) ?> active bridges (<a href="?show_inactive=1">Show inactive</a>)<br />
-        <a href="https://github.com/sebsauvage/rss-bridge">RSS-Bridge alpha 0.2 ~ Public Domain</a>
-    </footer>
+    <section>
+        <a href="https://github.com/sebsauvage/rss-bridge">RSS-Bridge alpha 0.2 ~ Public Domain</a><br />
+		<?= $activeFoundBridgeCount; ?>/<?= count($bridgeList) ?> active bridges. <br />
+        <?php
+            if($activeFoundBridgeCount !== count($bridgeList)){
+                // FIXME: This should be done in pure CSS
+                if(!$showInactive)
+                    echo '<a href="?show_inactive=1"><button class="small">Show inactive bridges</button></a><br />';
+                else
+                    echo '<a href="?show_inactive=0"><button class="small">Hide inactive bridges</button></a><br />';
+            }
+        ?>
+    </section>
     </body>
 </html>
