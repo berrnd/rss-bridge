@@ -21,6 +21,14 @@ class YoutubeApiBridge extends BridgeAbstract{
 				"type" : "text",
 				"required" : true,
 				"title" : "Insert your Data API key here!"
+			},
+			{
+				"name" : "Limit",
+				"identifier" : "limit",
+				"type" : "number",
+				"required" : false,
+				"title" : "Specifies the number of items to return for each request",
+				"defaultValue" : 10
 			}
 		]';
 
@@ -33,14 +41,6 @@ class YoutubeApiBridge extends BridgeAbstract{
 				"required" : true,
 				"title" : "Insert channel name here!",
 				"exampleValue" : "Youtube"
-			},
-			{
-				"name" : "Limit",
-				"identifier" : "limit",
-				"type" : "number",
-				"required" : false,
-				"title" : "Specifies the number of items to return for each request",
-				"defaultValue" : 10
 			}
 		]';
 
@@ -58,133 +58,94 @@ class YoutubeApiBridge extends BridgeAbstract{
 	}
 
 	public function collectData(array $param){
-
-		$limit = YOUTUBEAPI_LIMIT;
-		$api = new StdClass(); // Cache for the YouTube Data API
-		
-		// Load the API key
-		if (isset($param['key']) && $param['key'] != "") {
-			$api->key = $param['key'];
-		} else {
+		if (!isset($param['key']) || empty($param['key']))
 			$this->returnError('You must specify a valid API key (?key=...)', 400);
-		}
 		
-		// Load number of feed items (limit)
-		if (isset($param['channel']) && isset($param['limit']) && is_numeric($param['limit'])) {
-			$limit = (int)$param['limit'];
-		} 
-		else if (isset($param['playlist_id'])) { 
-			// not required
-		} else {
+		$apiKey = $param['key'];
+
+		if (!isset($param['limit']))
 			$limit = YOUTUBEAPI_LIMIT;
-		}
-		
-		// Retrieve information by channel name
-		if (isset($param['channel'])) {
-			$this->request = $param['channel'];
+		elseif (!is_numeric($param['limit']))
+			$this->returnError('The limit you specified ("' . $limit . '") is not a valid number!', 400);
+		else
+			$limit = $param['limit'];
+
+		if (isset($param['channel'])) { // Retrieve information by channel name
+			//$this->name = $param['channel'] . ' - ' . $this->name;
 
 			// We have to acquire the channel id first.
-			// For some reason an error from the API results in a false from file_get_contents, so we've to handle that.
-			$api->channels = file_get_contents('https://www.googleapis.com/youtube/v3/channels?part=contentDetails&forUsername=' . urlencode($this->request) . '&key=' . $api->key);
-			if($api->channels == false) { 
-				$this->returnError('Request failed! Check channel name and API key!', 400); 
-			}
-			$channels = json_decode($api->channels);
-			
-			// Calculate number of requests (max. 50 items per request possible)
-			$req_limit = (int)($limit / 50);
-			
-			if($limit % 50 <> 0) {
-				$req_limit++;
-			}
-			
-			// Each page is identified by a page token, the first page has none.
-			$pageToken = '';
-			
-			// Go through all pages
-			for($i = 1; $i <= $req_limit; $i++){
-				$api->playlistItems = file_get_contents('https://www.googleapis.com/youtube/v3/playlistItems?part=snippet%2CcontentDetails%2Cstatus&maxResults=50&playlistId=' . $channels->items[0]->contentDetails->relatedPlaylists->uploads . '&pageToken=' . $pageToken . '&key=' . $api->key);
-				$playlistItems = json_decode($api->playlistItems);
+			$request = 'https://www.googleapis.com/youtube/v3/channels?part=contentDetails&forUsername=' . urlencode($param['channel']) . '&key=' . $apiKey;
+			$json = file_get_contents($request);
+			if($json === false)
+				$this->returnError('Request failed for request: ' . $request . '!', 500); 
 
-				foreach($playlistItems->items as $element) {
-					
-					// Store description in a temporary variable, the description might consist of multiple lines and can include hyperlinks:
-					$description = htmlspecialchars($element->snippet->description);
-					$description = nl2br($description);
-					// Todo: This regex does not cover the RFC3987, but it works for basic ones (no data and such)
-					$description = preg_replace('/(http[s]{0,1}\:\/\/[a-zA-Z0-9.\/]{4,})/ims', '<a href="$1" target="_blank">$1</a> ', $description);
-					
-					$thumbnail = $element->snippet->thumbnails->{'default'}->url;
-
-					$item = new \Item();
-					$item->id = $element->contentDetails->videoId;
-					$item->uri = 'https://www.youtube.com/watch?v='.$item->id;
-					$item->title = htmlspecialchars($element->snippet->title);
-					$item->timestamp = strtotime($element->snippet->publishedAt);
-					$item->content = '<a href="' . $item->uri . '"><img src="' . $thumbnail . '" /></a><br><a href="' . $item->uri . '">' . $item->title . '</a><br><p>' . $description . '</p>';
-					$this->items[] = $item;
-					
-					// Stop once the number of requested items is reached
-					if(count($this->items) >= $limit) {
-						break;
-					}
-				}
-				
-				// Get the next token or stop if none exists
-				if(isset($playlistItems->nextPageToken)){
-					$pageToken = $playlistItems->nextPageToken;
-				} else {
-					break;
-				}
-			}
+			$channels = json_decode($json);
+			$playlistId = $channels->items[0]->contentDetails->relatedPlaylists->uploads;
+			$this->add_playlist($playlistId, $apiKey, $limit);
 		}
 		
-		// Retrieve information by playlist
-		else if (isset($param['playlist_id'])) {
-			
-			// The title is not part of the playlist request, but can be requested separately. We have to display the correct playlist name properly.
-			$api->playlists = file_get_contents('https://www.googleapis.com/youtube/v3/playlists?part=snippet&id=' . $param['playlist_id'] . '&key=' . $api->key);
-			$playlists = json_decode($api->playlists);
-			
-			$this->request = htmlspecialchars($playlists->items[0]->snippet->title) . ' (' . htmlspecialchars($playlists->items[0]->snippet->channelTitle) . ')';
+		else if (isset($param['playlist_id'])) { // Retrieve information by playlist
+			$playlistId = $param['playlist_id'];
 			
 			// Reading playlist information is similar to how it works on a channel. We don't need a channel id though.
 			// For a playlist we always return all items. YouTube has a limit of 200 items per playlist, so the maximum is 4 calls to the API.
-			$pageToken = '';
-			
-			do {
-				$api->playlistItems = file_get_contents('https://www.googleapis.com/youtube/v3/playlistItems?part=snippet%2CcontentDetails%2Cstatus&maxResults=50&playlistId=' . $param['playlist_id'] . '&pageToken=' . $pageToken . '&key=' . $api->key);
-				$playlistItems = json_decode($api->playlistItems);
-
-				foreach($playlistItems->items as $element) {
-					
-					// Store description in a temporary variable, the description might consist of multiple lines and can include hyperlinks:
-					$description = htmlspecialchars($element->snippet->description);
-					$description = nl2br($description);
-					// Todo: This regex does not cover the RFC3987, but it works for basic ones (no data and such)
-					$description = preg_replace('/(http[s]{0,1}\:\/\/[a-zA-Z0-9.\/]{4,})/ims', '<a href="$1" target="_blank">$1</a> ', $description);
-					
-					$thumbnail = $element->snippet->thumbnails->{'default'}->url;
-
-					$item = new \Item();
-					$item->id = $element->contentDetails->videoId;
-					$item->uri = 'https://www.youtube.com/watch?v='.$item->id;
-					$item->title = htmlspecialchars($element->snippet->title);
-					$item->timestamp = strtotime($element->snippet->publishedAt);
-					$item->content = '<a href="' . $item->uri . '"><img src="' . $thumbnail . '" /></a><br><a href="' . $item->uri . '">' . $item->title . '</a><br><p>' . $description . '</p>';
-					$this->items[] = $item;
-				}
-				
-				if (isset($playlistItems->nextPageToken)) {
-					$pageToken = $playlistItems->nextPageToken;
-				} else { 
-					$pageToken = ''; 
-				}
-			} while ($pageToken != '');
+			$this->add_playlist($playlistId, $apiKey, $limit);
 		}
 	}
 
-	public function getName(){
-		return (!empty($this->request) ? $this->request .' - ' : '') . 'Youtube API Bridge';
+	private function add_playlist($playlistId, $apiKey, $limit = -1){
+		// The title is not part of the playlist request, but can be requested separately. We have to display the correct playlist name properly.
+		$request = 'https://www.googleapis.com/youtube/v3/playlists?part=snippet&id=' . $playlistId . '&key=' . $apiKey;
+		$json = file_get_contents($request);
+		if($json === false)
+			$this->returnError('Request failed for request: ' . $request . '!', 500); 
+
+		$playlists = json_decode($json);
+		$this->name = htmlspecialchars($playlists->items[0]->snippet->title) . ' - ' . $this->name;
+
+		$pageToken = '';
+
+		do {
+			$request = 'https://www.googleapis.com/youtube/v3/playlistItems?part=snippet%2CcontentDetails%2Cstatus&maxResults=50&playlistId=' . $playlistId . '&pageToken=' . $pageToken . '&key=' . $apiKey;
+			$json = file_get_contents($request);
+			if($json === false)
+				$this->returnError('Request failed for request: ' . $request . '!', 500); 
+
+			$playlistItems = json_decode($json);
+
+			$done = $this->add_playlist_items($playlistItems, $limit);
+
+			if (!$done && isset($playlistItems->nextPageToken))
+				$pageToken = $playlistItems->nextPageToken;
+			else
+				break;
+		} while ($pageToken !== '');
+	}
+
+	private function add_playlist_items($playlistItems, $limit = -1){
+		foreach($playlistItems->items as $element) {
+			// Store description in a temporary variable, the description might 
+			// consist of multiple paragraphs and can include hyperlinks:
+			$description = htmlspecialchars($element->snippet->description);
+			$description = nl2br($description);
+			// Todo: This regex does not cover the RFC3987, but it works for basic ones (no data and such)
+			$description = preg_replace('/(http[s]{0,1}\:\/\/[a-zA-Z0-9.\/]{4,})/ims', '<a href="$1" target="_blank">$1</a> ', $description);
+
+			$thumbnail = $element->snippet->thumbnails->{'default'}->url;
+
+			$item = new \Item();
+			$item->author = $element->snippet->channelTitle;
+			$item->uri = 'https://www.youtube.com/watch?v=' . $element->contentDetails->videoId;
+			$item->title = htmlspecialchars($element->snippet->title);
+			$item->timestamp = strtotime($element->snippet->publishedAt);
+			$item->content = '
+				<a href="' . $item->uri . '"><img src="' . $thumbnail . '" /></a><br>
+				<p>' . $description . '</p>';
+			$this->items[] = $item;
+
+			// Stop once the number of requested items is reached (<= 0: all), return true if done
+			if(count($this->items) >= $limit && $limit >= 1)
+				return true;
+		}
 	}
 }
