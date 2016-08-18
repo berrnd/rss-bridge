@@ -43,6 +43,18 @@ class YoutubeApiBridge extends BridgeAbstract{
 				"exampleValue" : "Youtube"
 			}
 		]';
+		
+		$this->parameters['Get channel by id with limit'] =
+		'[
+			{
+				"name" : "Channel id",
+				"identifier" : "channel_id",
+				"type" : "text",
+				"required" : true,
+				"title" : "Insert channel id here!",
+				"exampleValue" : ""
+			}
+		]';
 
 		$this->parameters['Get playlist'] =
 		'[
@@ -63,18 +75,22 @@ class YoutubeApiBridge extends BridgeAbstract{
 		
 		$apiKey = $param['key'];
 
-		if (!isset($param['limit']))
+		if (!isset($param['limit']) || empty($param['limit']))
 			$limit = YOUTUBEAPI_LIMIT;
 		elseif (!is_numeric($param['limit']))
 			$this->returnError('The limit you specified ("' . $limit . '") is not a valid number!', 400);
 		else
 			$limit = $param['limit'];
 
-		if (isset($param['channel'])) { // Retrieve information by channel name
+		if (isset($param['channel']) || isset($param['channel_id'])) { // Retrieve information by channel name or id
 			//$this->name = $param['channel'] . ' - ' . $this->name;
+			
+			$query_param = 'forUsername';
+            if (isset($param['channel_id']))
+                $query_param = 'id';
 
 			// We have to acquire the channel id first.
-			$request = 'https://www.googleapis.com/youtube/v3/channels?part=contentDetails&forUsername=' . urlencode($param['channel']) . '&key=' . $apiKey;
+			$request = 'https://www.googleapis.com/youtube/v3/channels?part=contentDetails&' . $query_param . '=' . urlencode($param['channel'] ?: $param['channel_id']) . '&key=' . $apiKey;
 			$json = file_get_contents($request);
 			if($json === false)
 				$this->returnError('Request failed for request: ' . $request . '!', 500); 
@@ -131,16 +147,19 @@ class YoutubeApiBridge extends BridgeAbstract{
 			// Todo: This regex does not cover the RFC3987, but it works for basic ones (no data and such)
 			$description = preg_replace('/(http[s]{0,1}\:\/\/[a-zA-Z0-9.\/]{4,})/ims', '<a href="$1" target="_blank">$1</a> ', $description);
 
-			$thumbnail = $element->snippet->thumbnails->{'default'}->url;
+			$thumbnail = $element->snippet->thumbnails->{'medium'}->url;
 
 			$item = new \Item();
+			$item->id = $element->contentDetails->videoId;
 			$item->author = $element->snippet->channelTitle;
 			$item->uri = 'https://www.youtube.com/watch?v=' . $element->contentDetails->videoId;
 			$item->title = htmlspecialchars($element->snippet->title);
 			$item->timestamp = strtotime($element->snippet->publishedAt);
-			$item->content = '
-				<a href="' . $item->uri . '"><img src="' . $thumbnail . '" /></a><br>
-				<p>' . $description . '</p>';
+			$item->content = '<div>'
+                        . '<a href="' . $item->uri . '"><img width=320" height="180" align="left" style="padding-right: 10px; padding-bottom: 10px;" src="' . $thumbnail . '" /></a>'
+                        . nl2br(htmlentities($element->snippet->description))
+                        . '<br><br><a href="' . $item->uri . '">' . $item->uri . '</a>'
+                        . '</div>';
 			$this->items[] = $item;
 
 			// Stop once the number of requested items is reached (<= 0: all), return true if done
