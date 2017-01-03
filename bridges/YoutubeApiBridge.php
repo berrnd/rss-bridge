@@ -168,9 +168,9 @@ class YoutubeApiBridge extends BridgeAbstract {
 				$item['title'] = htmlspecialchars($element->snippet->title);
 				$item['timestamp'] = strtotime($element->snippet->publishedAt);
 				$item['content'] = '<div>'
-				. '<a href="' . $item->uri . '"><img width=320" height="180" align="left" style="padding-right: 10px; padding-bottom: 10px;" src="' . $thumbnail . '" /></a>'
+				. '<a href="' . $item['uri'] . '"><img width=320" height="180" align="left" style="padding-right: 10px; padding-bottom: 10px;" src="' . $thumbnail . '" /></a>'
 				. nl2br(htmlentities($element->snippet->description))
-				. '<br><br><a href="' . $item->uri . '">' . $item->uri . '</a>'
+				. '<br><br><a href="' . $item['uri'] . '">' . $item['uri'] . '</a>'
 				. '</div>';
 
 				$this->items[] = $item;
