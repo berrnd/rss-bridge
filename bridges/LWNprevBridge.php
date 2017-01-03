@@ -1,19 +1,13 @@
 <?php
-/**
- * RssBridgeLWNprev
- *
- * @name LWNPrev Bridge
- * @description Returns the articles from the previous LWN.net edition
- */
 class LWNprevBridge extends BridgeAbstract{
-  public function loadMetadatas() {
+  const MAINTAINER = 'Pierre Mazière';
+  const NAME = 'LWN Free Weekly Edition';
+  const URI = 'https://lwn.net/';
+  const CACHE_TIMEOUT = 604800; // 1 week
+  const DESCRIPTION = 'LWN Free Weekly Edition available one week late';
 
-    $this->maintainer = 'Pierre Mazière';
-    $this->name = 'LWN Free Weekly Edition';
-    $this->uri = 'https://lwn.net/free/bigpage';
-    $this->description = 'LWN Free Weekly Edition available one week late';
-    $this->update = '2016-08-17';
-
+  function getURI(){
+      return self::URI.'free/bigpage';
   }
 
   private function jumpToNextTag(&$node){
@@ -36,39 +30,26 @@ class LWNprevBridge extends BridgeAbstract{
     }
   }
 
-  public function collectData(array $param){
+  public function collectData(){
     // Because the LWN page is written in loose HTML and not XHTML,
     // Simple HTML Dom is not accurate enough for the job
-
-    $uri='https://lwn.net/free/bigpage';
-    $context=null;
-    if(defined('PROXY_URL')) {
-      $context = array(
-        'http' => array(
-          'proxy' => PROXY_URL,
-          'request_fulluri' => true,
-        ),
-      );
-      $context = stream_context_create($context);
-    }
-
-    $html=file_get_contents($uri, false, $context)
-      or $this->returnServerError('No results for LWNprev');
+    $content=getContents($this->getURI())
+      or returnServerError('No results for LWNprev');
 
     libxml_use_internal_errors(true);
-    $html=DOMDocument::loadHTML($html);
+    $html=new DOMDocument();
+    $html->loadHTML($content);
     libxml_clear_errors();
 
     $cat1='';
     $cat2='';
 
-    $realURI='https://lwn.net';
     foreach($html->getElementsByTagName('a') as $a){
       if($a->textContent==='Multi-page format'){
         break;
       }
     }
-    $realURI.=$a->getAttribute('href');
+    $realURI=self::URI.$a->getAttribute('href');
     $URICounter=0;
 
     $edition=$html->getElementsByTagName('h1')->item(0)->textContent;
@@ -81,34 +62,34 @@ class LWNprevBridge extends BridgeAbstract{
         continue;
       }
 
-      $item = new \Item();
+      $item = array();
 
       $h2NextSibling=$h2->nextSibling;
       $this->jumpToNextTag($h2NextSibling);
 
       switch($h2NextSibling->getAttribute('class')){
       case 'FeatureByline':
-        $item->author=$h2NextSibling->getElementsByTagName('b')->item(0)->textContent;
+        $item['author']=$h2NextSibling->getElementsByTagName('b')->item(0)->textContent;
         break;
       case 'GAByline':
         $text=$h2NextSibling->textContent;
-        $item->author=substr($text,strpos($text,'by '));
+        $item['author']=substr($text,strpos($text,'by '));
         break;
       default:
-        $item->author='LWN';
+        $item['author']='LWN';
         break;
       };
 
       $h2FirstChild=$h2->firstChild;
       $this->jumpToNextTag($h2FirstChild);
-      if($h2FirstChild->tagName==='a'){
-        $item->uri='https://lwn.net'.$h2FirstChild->getAttribute('href');
+      if($h2FirstChild->nodeName==='a'){
+        $item['uri']=self::URI.$h2FirstChild->getAttribute('href');
       }else{
-        $item->uri=$realURI.'#'.$URICounter;
+        $item['uri']=$realURI.'#'.$URICounter;
       }
       $URICounter++;
 
-      $item->timestamp=$editionTimeStamp+$URICounter;
+      $item['timestamp']=$editionTimeStamp+$URICounter;
 
       $h2PrevSibling=$h2->previousSibling;
       $this->jumpToPreviousTag($h2PrevSibling);
@@ -131,11 +112,11 @@ class LWNprevBridge extends BridgeAbstract{
       }
       $h2PrevSibling=null;
 
-      $item->title='';
+      $item['title']='';
       if(!empty($cat1)){
-        $item->title.='['.$cat1.($cat2?'/'.$cat2:'').'] ';
+        $item['title'].='['.$cat1.($cat2?'/'.$cat2:'').'] ';
       }
-      $item->title.=$h2->textContent;
+      $item['title'].=$h2->textContent;
 
       $node=$h2;
       $content='';
@@ -145,8 +126,9 @@ class LWNprevBridge extends BridgeAbstract{
         if(
           !$node || (
             $node->nodeType!==XML_TEXT_NODE && (
-              $node->tagName==='h2' ||
-              in_array($node->getAttribute('class'),array('Cat1HL','Cat2HL'))
+              $node->nodeName==='h2' ||
+              (!is_null($node->attributes) && !is_null($class=$node->attributes->getNamedItem('class')) &&
+              in_array($class->nodeValue,array('Cat1HL','Cat2HL')))
             )
           )
         ){
@@ -155,12 +137,8 @@ class LWNprevBridge extends BridgeAbstract{
           $content.=$node->C14N();
         }
       }
-      $item->content=$content;
+      $item['content']=$content;
       $this->items[]=$item;
     }
-  }
-
-  public function getCacheDuration(){
-    return 604800; // one week
   }
 }

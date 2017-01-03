@@ -1,42 +1,26 @@
 <?php
-class CommonDreamsBridge extends BridgeAbstract{
+class CommonDreamsBridge extends FeedExpander {
 
-	public function loadMetadatas() {
-		$this->maintainer = "nyutag";
-		$this->name = "CommonDreams Bridge";
-		$this->uri = "http://www.commondreams.org/";
-		$this->description = "Returns the newest articles.";
-		$this->update = '2016-08-17';
+	const MAINTAINER = "nyutag";
+	const NAME = "CommonDreams Bridge";
+	const URI = "http://www.commondreams.org/";
+	const DESCRIPTION = "Returns the newest articles.";
+
+	public function collectData(){
+		$this->collectExpandableDatas('http://www.commondreams.org/rss.xml', 10);
+	}
+
+	protected function parseItem($newsItem){
+		$item = parent::parseItem($newsItem);
+		$item['content'] = $this->CommonDreamsExtractContent($item['uri']);
+		return $item;
 	}
 
 	private function CommonDreamsExtractContent($url) {
-		$html3 = $this->file_get_html($url);
+		$html3 = getSimpleHTMLDOMCached($url);
 		$text = $html3->find('div[class=field--type-text-with-summary]', 0)->innertext;
 		$html3->clear();
 		unset ($html3);
 		return $text;
-	}
-
-	public function collectData(array $param){
-
-		function CommonDreamsUrl($string) {
-			$html2 = explode(" ", $string);
-			$string = $html2[2] . "/node/" . $html2[0];
-			return $string;
-		}
-
-		$html = $this->file_get_html('http://www.commondreams.org/rss.xml') or $this->returnServerError('Could not request CommonDreams.');
-		$limit = 0;
-		foreach($html->find('item') as $element) {
-			if($limit < 4) {
-				$item = new \Item();
-				$item->title = $element->find('title', 0)->innertext;
-				$item->uri = CommonDreamsUrl($element->find('guid', 0)->innertext);
-				$item->timestamp = strtotime($element->find('pubDate', 0)->plaintext);
-				$item->content = $this->CommonDreamsExtractContent($item->uri);
-				$this->items[] = $item;
-				$limit++;
-			}
-		}
 	}
 }

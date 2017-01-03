@@ -1,28 +1,23 @@
 <?php
 class MondeDiploBridge extends BridgeAbstract{
 
-	public function loadMetadatas() {
-		$this->maintainer = "Pitchoule";
-		$this->name = 'Monde Diplomatique';
-		$this->uri = 'http://www.monde-diplomatique.fr';
-		$this->description = "Returns most recent results from MondeDiplo.";
-		$this->update = '2016-08-17';
-	}
+	const MAINTAINER = "Pitchoule";
+	const NAME = 'Monde Diplomatique';
+	const URI = 'http://www.monde-diplomatique.fr/';
+	const CACHE_TIMEOUT = 21600; //6h
+	const DESCRIPTION = "Returns most recent results from MondeDiplo.";
 
-	public function collectData(array $param){	
-		$html = $this->file_get_html($this->uri) or $this->returnServerError('Could not request MondeDiplo. for : ' . $link);
+	public function collectData(){
+        $html = getSimpleHTMLDOM(self::URI)
+            or returnServerError('Could not request MondeDiplo. for : ' . self::URI);
 
 		foreach($html->find('div.unarticle') as $article) {
 			$element = $article->parent();
-			$item = new Item();
-			$item->uri = $this->uri . $element->href;
-			$item->title = $element->find('h3', 0)->plaintext;
-			$item->content = $element->find('div.dates_auteurs', 0)->plaintext . '<br>' . strstr($element->find('div', 0)->plaintext, $element->find('div.dates_auteurs', 0)->plaintext, true);
+			$item = array();
+			$item['uri'] = self::URI . $element->href;
+			$item['title'] = $element->find('h3', 0)->plaintext;
+			$item['content'] = $element->find('div.dates_auteurs', 0)->plaintext . '<br>' . strstr($element->find('div', 0)->plaintext, $element->find('div.dates_auteurs', 0)->plaintext, true);
 			$this->items[] = $item;
 		}
-	}
-
-	public function getCacheDuration(){
-		return 21600; // 6 hours
 	}
 }

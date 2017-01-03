@@ -1,94 +1,91 @@
 <?php
 class AllocineFRBridge extends BridgeAbstract{
 
-    public function loadMetadatas() {
 
-        $this->maintainer = "superbaillot.net";
-        $this->name = "Allo Cine Bridge";
-        $this->uri = "http://www.allocine.fr";
-        $this->description = "Bridge for allocine.fr";
-        $this->update = '2016-08-17';
+    const MAINTAINER = "superbaillot.net";
+    const NAME = "Allo Cine Bridge";
+    const CACHE_TIMEOUT = 25200; // 7h
+    const URI = "http://www.allocine.fr/";
+    const DESCRIPTION = "Bridge for allocine.fr";
+    const PARAMETERS = array( array(
+        'category'=>array(
+            'name'=>'category',
+            'type'=>'list',
+            'required'=>true,
+            'exampleValue'=>'Faux Raccord',
+            'title'=>'Select your category',
+            'values'=>array(
+                'Faux Raccord'=>'faux-raccord',
+                'Top 5'=>'top-5',
+                'Tueurs en Séries'=>'tueurs-en-serie'
+            )
+        )
+    ));
 
-        $this->parameters[] = 
-        '[
-            {
-                "name" : "category",
-                "identifier" : "category",
-                "type" : "list",
-                "required" : true,
-                "exampleValue" : "Faux Raccord",
-                "title" : "Select your category",
-                "values" : 
-                [
-                    {
-                        "name" : "Faux Raccord",
-                        "value" : "faux-raccord"
-                    },
-                    {
-                        "name" : "Top 5",
-                        "value" : "top-5"
-                    },
-                    {
-                        "name" : "Tueurs En Serie",
-                        "value" : "tuers-en-serie"
-                    }
-                ]
-            }
-        ]';
-    }
+    public function getURI(){
+        if(!is_null($this->getInput('category'))){
 
-    public function collectData(array $params){
-
-        // Check all parameters
-        if(!isset($params['category']))
-            $this->returnClientError('You must specify a valid category (&category= )!');
-
-        $category = '';
-        switch($params['category']){
+            switch($this->getInput('category')){
             case 'faux-raccord':
-                $this->uri = 'http://www.allocine.fr/video/programme-12284/saison-24580/';
-                $category = 'Faux Raccord';
+                $uri = static::URI.'video/programme-12284/saison-27129/';
                 break;
             case 'top-5':
-                $this->uri = 'http://www.allocine.fr/video/programme-12299/saison-22542/';
-                $category = 'Top 5';
+                $uri = static::URI.'video/programme-12299/saison-29561/';
                 break;
-            case 'tuers-en-serie':
-                $this->uri = 'http://www.allocine.fr/video/programme-12286/saison-22938/';
-                $category = 'Tueurs en Séries';
+            case 'tueurs-en-serie':
+                $uri = static::URI.'video/programme-12286/saison-22938/';
                 break;
-            default:
-                $this->returnClientError('You must select a valid category!');
+            }
+
+            return $uri;
         }
 
-        // Update bridge name to match selection
-        $this->name .= ' : ' . $category;
+        return parent::getURI();
+    }
 
-        $html = $this->file_get_html($this->uri) or $this->returnServerError("Could not request {$this->uri}!");
+    public function getName(){
+        if(!is_null($this->getInput('category'))){
+        return self::NAME.' : '
+            .array_search(
+                $this->getInput('category'),
+                self::PARAMETERS[$this->queriedContext]['category']['values']
+            );
+        }
+
+        return parent::getName();
+    }
+
+    public function collectData(){
+
+        $html = getSimpleHTMLDOM($this->getURI())
+            or returnServerError("Could not request ".$this->getURI()." !");
+
+        $category=array_search(
+                $this->getInput('category'),
+                self::PARAMETERS[$this->queriedContext]['category']['values']
+            );
+
 
         foreach($html->find('figure.media-meta-fig') as $element)
         {
-            $item = new Item();
-            
+            $item = array();
+
             $title = $element->find('div.titlebar h3.title a', 0);
             $content = trim($element->innertext);
             $figCaption = strpos($content, $category);
 
             if($figCaption !== false)
             {
-                $content = str_replace('src="/', 'src="http://www.allocine.fr/', $content);
-                $content = str_replace('href="/', 'href="http://www.allocine.fr/', $content);
-                $content = str_replace('src=\'/', 'src=\'http://www.allocine.fr/', $content);
-                $content = str_replace('href=\'/', 'href=\'http://www.allocine.fr/', $content);
-                $item->content = $content;
-                $item->title = trim($title->innertext);
-                $item->uri = "http://www.allocine.fr" . $title->href;
+                $content = str_replace('src="/', 'src="'.static::URI, $content);
+                $content = str_replace('href="/', 'href="'.static::URI, $content);
+                $content = str_replace('src=\'/', 'src=\''.static::URI, $content);
+                $content = str_replace('href=\'/', 'href=\''.static::URI, $content);
+                $item['content'] = $content;
+                $item['title'] = trim($title->innertext);
+                $item['uri'] = static::URI . $title->href;
                 $this->items[] = $item;
             }
         }
     }
 
-    public function getCacheDuration(){
-        return 25200; // 7 hours
-    }
 }

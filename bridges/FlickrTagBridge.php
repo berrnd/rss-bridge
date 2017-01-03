@@ -1,58 +1,48 @@
 <?php
 class FlickrTagBridge extends BridgeAbstract{
 
-	public function loadMetadatas() {
+	const MAINTAINER = "erwang";
+	const NAME = "Flickr TagUser";
+	const URI = "http://www.flickr.com/";
+	const CACHE_TIMEOUT = 21600; //6h
+	const DESCRIPTION = "Returns the tagged or user images from Flickr";
 
-		$this->maintainer = "erwang";
-		$this->name = "Flickr TagUser";
-		$this->uri = "http://www.flickr.com/";
-		$this->description = "Returns the tagged or user images from Flickr";
-		$this->update = '2016-08-17';
+    const PARAMETERS = array(
+        'By keyword' => array(
+            'q'=>array(
+                'name'=>'keyword',
+                'required'=>true
+            )
+        ),
 
-		$this->parameters["By keyword"] =
-		'[
-			{
-				"name" : "Keyword",
-				"identifier" : "q"
-			}
-		]';
+        'By username' => array(
+            'u'=>array(
+                'name'=>'Username',
+                'required'=>true
+            )
+        ),
+    );
 
-		$this->parameters["By username"] =
-		'[
-			{
-				"name" : "Username",
-				"identifier" : "u"
-			}
-		]';
-	}
-
-    public function collectData(array $param){
-        $html = $this->file_get_html('http://www.flickr.com/search/?q=vendee&s=rec') or $this->returnServerError('Could not request Flickr.');
-        if (isset($param['q'])) {   /* keyword search mode */
-            $this->request = $param['q'];
-            $html = $this->file_get_html('http://www.flickr.com/search/?q='.urlencode($this->request).'&s=rec') or $this->returnServerError('No results for this query.');
-        }
-        elseif (isset($param['u'])) {   /* user timeline mode */
-            $this->request = $param['u'];
-            $html = $this->file_get_html('http://www.flickr.com/photos/'.urlencode($this->request).'/') or $this->returnServerError('Requested username can\'t be found.');
-        }
-        
-        else {
-            $this->returnClientError('You must specify a keyword or a Flickr username.');
+    public function collectData(){
+        switch($this->queriedContext){
+        case 'By keyword':
+            $html = getSimpleHTMLDOM(self::URI.'search/?q='.urlencode($this->getInput('q')).'&s=rec')
+                or returnServerError('No results for this query.');
+            break;
+        case 'by username':
+            $html = getSimpleHTMLDOM(self::URI.'photos/'.urlencode($this->getInput('u')).'/')
+                or returnServerError('Requested username can\'t be found.');
+            break;
         }
 
         foreach($html->find('span.photo_container') as $element) {
-            $item = new \Item();
-            $item->uri = 'http://flickr.com'.$element->find('a',0)->href;
+            $item = array();
+            $item['uri'] = self::URI.$element->find('a',0)->href;
             $thumbnailUri = $element->find('img',0)->getAttribute('data-defer-src');
-            $item->content = '<a href="' . $item->uri . '"><img src="' . $thumbnailUri . '" /></a>'; // FIXME: Filter javascript ?
-            $item->title = $element->find('a',0)->title;
+            $item['content'] = '<a href="' . $item['uri'] . '"><img src="' . $thumbnailUri . '" /></a>'; // FIXME: Filter javascript ?
+            $item['title'] = $element->find('a',0)->title;
             $this->items[] = $item;
         }
-    }
-
-    public function getCacheDuration(){
-        return 21600; // 6 hours
     }
 }
 

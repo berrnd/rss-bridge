@@ -1,48 +1,39 @@
 <?php
 class CopieDoubleBridge extends BridgeAbstract{
 
-	public function loadMetadatas() {
+    const MAINTAINER = "superbaillot.net";
+    const NAME = "CopieDouble";
+    const URI = "http://www.copie-double.com/";
+    const CACHE_TIMEOUT = 14400; // 4h
+    const DESCRIPTION = "CopieDouble";
 
-		$this->maintainer = "superbaillot.net";
-		$this->name = "CopieDouble";
-		$this->uri = "http://www.copie-double.com/";
-		$this->description = "CopieDouble";
-		$this->update = '2016-08-17';
-
-	}
-
-
-    public function collectData(array $param){
-        $html = $this->file_get_html('http://www.copie-double.com/') or $this->returnServerError('Could not request CopieDouble.');
+    public function collectData(){
+        $html = getSimpleHTMLDOM(self::URI)
+            or returnServerError('Could not request CopieDouble.');
         $table = $html->find('table table', 2);
-        
+
         foreach($table->find('tr') as $element)
         {
             $td = $element->find('td', 0);
-             $cpt++;
             if($td->class == "couleur_1")
             {
-                $item = new Item();
-                
+                $item = array();
+
                 $title = $td->innertext;
                 $pos = strpos($title, "<a");
                 $title = substr($title, 0, $pos);
-                $item->title = $title;
+                $item['title'] = $title;
             }
             elseif(strpos($element->innertext, "/images/suivant.gif") === false)
             {
                 $a=$element->find("a", 0);
-                $item->uri = "http://www.copie-double.com" . $a->href;
-                
-                $content = str_replace('src="/', 'src="http://www.copie-double.com/',$element->find("td", 0)->innertext);
-                $content = str_replace('href="/', 'href="http://www.copie-double.com/',$content);
-                $item->content = $content;
+                $item['uri'] = self::URI . $a->href;
+
+                $content = str_replace('src="/', 'src="/'.self::URI,$element->find("td", 0)->innertext);
+                $content = str_replace('href="/', 'href="'.self::URI,$content);
+                $item['content'] = $content;
                 $this->items[] = $item;
             }
         }
-    }
-
-    public function getCacheDuration(){
-        return 14400; // 4 hours
     }
 }

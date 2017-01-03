@@ -1,68 +1,60 @@
 <?php
 class CourrierInternationalBridge extends BridgeAbstract{
 
-	public function loadMetadatas() {
+    const MAINTAINER = "teromene";
+    const NAME = "Courrier International Bridge";
+    const URI = "http://CourrierInternational.com/";
+    const CACHE_TIMEOUT = 300; // 5 min
+    const DESCRIPTION = "Courrier International bridge";
 
-		$this->maintainer = "teromene";
-		$this->name = "Courrier International Bridge";
-		$this->uri = "http://CourrierInternational.fr/";
-		$this->description = "Courrier International bridge";
-		$this->update = '2016-08-17';
+    public function collectData(){
 
-	}
+        $html = getSimpleHTMLDOM(self::URI)
+            or returnServerError('Error.');
 
-    public function collectData(array $param){
-	
-        $html = '';
-
-        $html = $this->file_get_html('http://www.courrierinternational.com/') or $this->returnServerError('Error.');
-	
-
-	
         $element = $html->find("article");
 
-        $article_count = 1;	
+        $article_count = 1;
 
         foreach($element as $article) {
-		
-            $item = new \Item();
-		
-            $item->uri = $article->parent->getAttribute("href");
 
-            if(strpos($item->uri, "http") === FALSE) {
-                $item->uri = "http://courrierinternational.fr/".$item->uri;
+            $item = array();
+
+            $item['uri'] = $article->parent->getAttribute("href");
+
+            if(strpos($item['uri'], "http") === FALSE) {
+                $item['uri'] = self::URI.$item['uri'];
             }
-        
-            $page = $this->file_get_html($item->uri);
 
-            $cleaner = new HTMLSanitizer();
-        
-            $item->content = $cleaner->sanitize($page->find("div.article-text")[0]);
-            $item->title = strip_tags($article->find(".title")[0]);
+            $page = getSimpleHTMLDOMCached($item['uri']);
 
-            $dateTime = date_parse($page->find("time")[0]);
+            $content = $page->find('.article-text',0);
+            if(!$content){
+              $content = $page->find('.depeche-text',0);
+            }
 
-            $item->timestamp = mktime(
-       			$dateTime['hour'], 
-        		$dateTime['minute'], 
-        		$dateTime['second'], 
-        		$dateTime['month'], 
-        		$dateTime['day'], 
+            $item['content'] = sanitize($content);
+            $item['title'] = strip_tags($article->find(".title",0));
+
+            $dateTime = date_parse($page->find("time",0));
+
+            $item['timestamp'] = mktime(
+       			$dateTime['hour'],
+        		$dateTime['minute'],
+        		$dateTime['second'],
+        		$dateTime['month'],
+        		$dateTime['day'],
         		$dateTime['year']
             );
-		
+
             $this->items[] = $item;
             $article_count ++;
             if($article_count > 5) break;
-	
+
         }
 
 
 
-    }
-
-    public function getCacheDuration(){
-        return 300; // 5 minutes
     }
 }
 

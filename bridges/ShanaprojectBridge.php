@@ -1,28 +1,25 @@
 <?php
 class ShanaprojectBridge extends BridgeAbstract {
-    public function loadMetadatas() {
-        $this->maintainer = 'logmanoriginal';
-        $this->name = 'Shanaproject Bridge';
-        $this->uri = 'http://www.shanaproject.com';
-        $this->description = 'Returns a list of anime from the current Season Anime List';
-        $this->update = '2016-08-17';
-    }
+    const MAINTAINER = 'logmanoriginal';
+    const NAME = 'Shanaproject Bridge';
+    const URI = 'http://www.shanaproject.com';
+    const DESCRIPTION = 'Returns a list of anime from the current Season Anime List';
 
     // Returns an html object for the Season Anime List (latest season)
     private function LoadSeasonAnimeList(){
         // First we need to find the URI to the latest season from the 'seasons' page searching for 'Season Anime List'
-        $html = $this->file_get_html($this->getURI() . '/seasons');
-        if(!$html) 
-            $this->returnServerError('Could not load \'seasons\' page!');
+        $html = getSimpleHTMLDOM($this->getURI() . '/seasons');
+        if(!$html)
+            returnServerError('Could not load \'seasons\' page!');
 
         $season = $html->find('div.follows_menu/a', 1);
         if(!$season)
-            $this->returnServerError('Could not find \'Season Anime List\'!');
+            returnServerError('Could not find \'Season Anime List\'!');
 
-        $html = $this->file_get_html($this->getURI() . $season->href);
+        $html = getSimpleHTMLDOM($this->getURI() . $season->href);
         if(!$html)
-            $this->returnServerError('Could not load \'Season Anime List\' from \'' . $season->innertext . '\'!');
-        
+            returnServerError('Could not load \'Season Anime List\' from \'' . $season->innertext . '\'!');
+
         return $html;
     }
 
@@ -30,7 +27,7 @@ class ShanaprojectBridge extends BridgeAbstract {
     private function ExtractAnimeTitle($anime){
         $title = $anime->find('a', 0);
         if(!$title)
-            $this->returnServerError('Could not find anime title!');
+            returnServerError('Could not find anime title!');
         return trim($title->innertext);
     }
 
@@ -38,7 +35,7 @@ class ShanaprojectBridge extends BridgeAbstract {
     private function ExtractAnimeURI($anime){
         $uri = $anime->find('a', 0);
         if(!$uri)
-            $this->returnServerError('Could not find anime URI!');
+            returnServerError('Could not find anime URI!');
         return $this->getURI() . $uri->href;
     }
 
@@ -46,7 +43,7 @@ class ShanaprojectBridge extends BridgeAbstract {
     private function ExtractAnimeTimestamp($anime){
         $timestamp = $anime->find('span.header_info_block', 1);
         if(!$timestamp)
-            $this->returnServerError('Could not find anime timestamp!');
+            returnServerError('Could not find anime timestamp!');
         return strtotime($timestamp->innertext);
     }
 
@@ -62,7 +59,7 @@ class ShanaprojectBridge extends BridgeAbstract {
     private function ExtractAnimeEpisodeInformation($anime){
         $episode = $anime->find('div.header_info_episode', 0);
         if(!$episode)
-            $this->returnServerError('Could not find anime episode information!');
+            returnServerError('Could not find anime episode information!');
         return preg_replace('/\r|\n/', ' ', $episode->plaintext);
     }
 
@@ -73,8 +70,8 @@ class ShanaprojectBridge extends BridgeAbstract {
 
         if(preg_match("/url\(\/\/([^\)]+)\)/i", $anime->parent->style, $matches))
             return $matches[1];
-        
-        $this->returnServerError('Could not extract background image!');
+
+        returnServerError('Could not extract background image!');
     }
 
     // Builds an URI to search for a specific anime (subber is left empty)
@@ -92,20 +89,20 @@ class ShanaprojectBridge extends BridgeAbstract {
                 <p><a href="' . $this->BuildAnimeSearchURI($anime) . '">Search episodes</a></p>';
     }
 
-    public function collectData (array $param){
+    public function collectData(){
         $html = $this->LoadSeasonAnimeList();
 
         $animes = $html->find('div.header_display_box_info');
         if(!$animes)
-            $this->returnServerError('Could not find anime headers!');
-        
+            returnServerError('Could not find anime headers!');
+
         foreach($animes as $anime){
-            $item = new \Item();
-            $item->title = $this->ExtractAnimeTitle($anime);
-            $item->author = $this->ExtractAnimeAuthor($anime);
-            $item->uri = $this->ExtractAnimeURI($anime);
-            $item->timestamp = $this->ExtractAnimeTimestamp($anime);
-            $item->content = $this->BuildAnimeContent($anime);
+            $item = array();
+            $item['title'] = $this->ExtractAnimeTitle($anime);
+            $item['author'] = $this->ExtractAnimeAuthor($anime);
+            $item['uri'] = $this->ExtractAnimeURI($anime);
+            $item['timestamp'] = $this->ExtractAnimeTimestamp($anime);
+            $item['content'] = $this->BuildAnimeContent($anime);
             $this->items[] = $item;
         }
     }

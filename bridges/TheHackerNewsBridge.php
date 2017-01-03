@@ -1,17 +1,12 @@
 <?php
 class TheHackerNewsBridge extends BridgeAbstract {
 
-    public function loadMetadatas() {
+    const MAINTAINER = 'ORelio';
+    const NAME = 'The Hacker News Bridge';
+    const URI = 'https://thehackernews.com/';
+    const DESCRIPTION = 'Cyber Security, Hacking, Technology News.';
 
-        $this->maintainer = 'ORelio';
-        $this->name = 'The Hacker News Bridge';
-        $this->uri = 'https://thehackernews.com/';
-        $this->description = 'Cyber Security, Hacking, Technology News.';
-        $this->update = '2016-08-17';
-
-    }
-
-    public function collectData(array $param) {
+    public function collectData(){
 
         function StripWithDelimiters($string, $start, $end) {
             while (strpos($string, $start) !== false) {
@@ -45,7 +40,7 @@ class TheHackerNewsBridge extends BridgeAbstract {
             return $string;
         }
 
-        $html = $this->file_get_html($this->getURI()) or $this->returnServerError('Could not request TheHackerNews: '.$this->getURI());
+        $html = getSimpleHTMLDOM($this->getURI()) or returnServerError('Could not request TheHackerNews: '.$this->getURI());
         $limit = 0;
 
         foreach ($html->find('article') as $element) {
@@ -55,18 +50,18 @@ class TheHackerNewsBridge extends BridgeAbstract {
                 $article_author = trim($element->find('span.vcard', 0)->plaintext);
                 $article_title = $element->find('a.entry-title', 0)->plaintext;
                 $article_timestamp = strtotime($element->find('span.updated', 0)->plaintext);
-                $article = $this->file_get_html($article_url) or $this->returnServerError('Could not request TheHackerNews: '.$article_url);
+                $article = getSimpleHTMLDOM($article_url) or returnServerError('Could not request TheHackerNews: '.$article_url);
 
                 $contents = $article->find('div.articlebodyonly', 0)->innertext;
                 $contents = StripRecursiveHTMLSection($contents, 'div', '<div class=\'clear\'');
                 $contents = StripWithDelimiters($contents, '<script', '</script>');
 
-                $item = new \Item();
-                $item->uri = $article_url;
-                $item->title = $article_title;
-                $item->author = $article_author;
-                $item->timestamp = $article_timestamp;
-                $item->content = trim($contents);
+                $item = array();
+                $item['uri'] = $article_url;
+                $item['title'] = $article_title;
+                $item['author'] = $article_author;
+                $item['timestamp'] = $article_timestamp;
+                $item['content'] = trim($contents);
                 $this->items[] = $item;
                 $limit++;
             }

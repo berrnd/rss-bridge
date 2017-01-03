@@ -1,15 +1,13 @@
 <?php
 class EstCeQuonMetEnProdBridge extends BridgeAbstract {
 
-    public function loadMetadatas() {
-        $this->maintainer = 'ORelio';
-        $this->name = 'Est-ce qu\'on met en prod aujourd\'hui ?';
-        $this->uri = 'https://www.estcequonmetenprodaujourdhui.info/';
-        $this->description = 'Should we put a website in production today? (French)';
-        $this->update = '2016-08-17';
-    }
+    const MAINTAINER = 'ORelio';
+    const NAME = 'Est-ce qu\'on met en prod aujourd\'hui ?';
+    const URI = 'https://www.estcequonmetenprodaujourdhui.info/';
+    const CACHE_TIMEOUT = 21600; // 6h
+    const DESCRIPTION = 'Should we put a website in production today? (French)';
 
-    public function collectData(array $param) {
+    public function collectData(){
         function ExtractFromDelimiters($string, $start, $end) {
             if (strpos($string, $start) !== false) {
                 $section_retrieved = substr($string, strpos($string, $start) + strlen($start));
@@ -18,19 +16,15 @@ class EstCeQuonMetEnProdBridge extends BridgeAbstract {
             } return false;
         }
 
-        $html = $this->file_get_html($this->getURI()) or $this->returnServerError('Could not request EstCeQuonMetEnProd: '.$this->getURI());
+        $html = getSimpleHTMLDOM($this->getURI()) or returnServerError('Could not request EstCeQuonMetEnProd: '.$this->getURI());
 
-        $item = new \Item();
-        $item->uri = $this->getURI().'#'.date('Y-m-d');
-        $item->title = $this->getName();
-        $item->author = 'Nicolas Hoffmann';
-        $item->timestamp = strtotime('today midnight');
-        $item->content = str_replace('src="/', 'src="'.$this->getURI(), trim(ExtractFromDelimiters($html->outertext, '<body role="document">', '<br /><br />')));
+        $item = array();
+        $item['uri'] = $this->getURI().'#'.date('Y-m-d');
+        $item['title'] = $this->getName();
+        $item['author'] = 'Nicolas Hoffmann';
+        $item['timestamp'] = strtotime('today midnight');
+        $item['content'] = str_replace('src="/', 'src="'.$this->getURI(), trim(ExtractFromDelimiters($html->outertext, '<body role="document">', '<br /><br />')));
         $this->items[] = $item;
-    }
-
-    public function getCacheDuration() {
-        return 21600; // 6 hours
     }
 }
 ?>
