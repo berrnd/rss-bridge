@@ -60,7 +60,7 @@ class YoutubeApiBridge extends BridgeAbstract {
 			return $this->name . ' - YouTube API Bridge';
 			break;
 		default:
-			return 'YouTube API Bridge';
+			return parent::getName();
 		}
 	}
 
@@ -94,7 +94,7 @@ class YoutubeApiBridge extends BridgeAbstract {
 
 		$json = file_get_contents($request);
 		if($json === false)
-			$this->returnError('Request failed for request: ' . $request . '!', 500);
+			returnServerError('Request failed for request: ' . $request . '!');
 
 		$channels = json_decode($json);
 		$playlistId = $channels->items[0]->contentDetails->relatedPlaylists->uploads;
@@ -126,7 +126,7 @@ class YoutubeApiBridge extends BridgeAbstract {
 
 		$json = file_get_contents($request);
 		if($json === false)
-			$this->returnError('Request failed for request: ' . $request . '!', 500);
+			returnServerError('Request failed for request: ' . $request . '!');
 
 		$playlists = json_decode($json);
 		$this->name = htmlspecialchars($playlists->items[0]->snippet->title);
@@ -134,10 +134,21 @@ class YoutubeApiBridge extends BridgeAbstract {
 		$pageToken = '';
 
 		do {
-			$request = 'https://www.googleapis.com/youtube/v3/playlistItems?part=snippet%2CcontentDetails%2Cstatus&maxResults=50&playlistId=' . $playlistId . '&pageToken=' . $pageToken . '&key=' . $apiKey;
+			$request = 'https://www.googleapis.com/youtube/v3/playlistItems?'
+			. implode('&', array(
+				'part=snippet%2CcontentDetails%2Cstatus',
+				'maxResults=50',
+				'playlistId='
+			))
+			. $playlistId
+			. '&pageToken='
+			. $pageToken
+			. '&key='
+			. $apiKey;
+
 			$json = file_get_contents($request);
 			if($json === false)
-				$this->returnError('Request failed for request: ' . $request . '!', 500);
+				returnServerError('Request failed for request: ' . $request . '!');
 
 			$playlistItems = json_decode($json);
 
@@ -157,7 +168,11 @@ class YoutubeApiBridge extends BridgeAbstract {
 			$description = htmlspecialchars($element->snippet->description);
 			$description = nl2br($description);
 			// Todo: This regex does not cover the RFC3987, but it works for basic ones (no data and such)
-			$description = preg_replace('/(http[s]{0,1}\:\/\/[a-zA-Z0-9.\/]{4,})/ims', '<a href="$1" target="_blank">$1</a> ', $description);
+			$description = preg_replace(
+				'/(http[s]{0,1}\:\/\/[a-zA-Z0-9.\/]{4,})/ims',
+				'<a href="$1" target="_blank">$1</a> ',
+				$description
+			);
 
 			$thumbnail = $element->snippet->thumbnails->{'medium'}->url;
 
@@ -171,6 +186,8 @@ class YoutubeApiBridge extends BridgeAbstract {
 				. '<a href="' . $item['uri'] . '"><img width=320" height="180" align="left" style="padding-right: 10px; padding-bottom: 10px;" src="' . $thumbnail . '" /></a>'
 				. nl2br(htmlentities($element->snippet->description))
 				. '<br><br><a href="' . $item['uri'] . '">' . $item['uri'] . '</a>'
+					   
+				  
 				. '</div>';
 
 				$this->items[] = $item;
