@@ -1,0 +1,196 @@
+﻿<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Name>rss-bridge</Name>
+    <ProjectGuid>{66abc6a4-3ded-4b7c-b81c-fcb1f48ca698}</ProjectGuid>
+    <RootNamespace>
+    </RootNamespace>
+    <OutputType>Library</OutputType>
+    <ProjectTypeGuids>{A0786B88-2ADB-4C21-ABE8-AA2D79766269}</ProjectTypeGuids>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
+    <IncludeDebugInformation>true</IncludeDebugInformation>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
+    <IncludeDebugInformation>false</IncludeDebugInformation>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="bridges\ABCTabsBridge.php" />
+    <Compile Include="bridges\AcrimedBridge.php" />
+    <Compile Include="bridges\AllocineFRBridge.php" />
+    <Compile Include="bridges\AmazonBridge.php" />
+    <Compile Include="bridges\AnimeUltimeBridge.php" />
+    <Compile Include="bridges\Arte7Bridge.php" />
+    <Compile Include="bridges\AskfmBridge.php" />
+    <Compile Include="bridges\AugsburgerAllgemeineBridge.php" />
+    <Compile Include="bridges\BandcampBridge.php" />
+    <Compile Include="bridges\BastaBridge.php" />
+    <Compile Include="bridges\BlaguesDeMerdeBridge.php" />
+    <Compile Include="bridges\BooruprojectBridge.php" />
+    <Compile Include="bridges\CADBridge.php" />
+    <Compile Include="bridges\CastorusBridge.php" />
+    <Compile Include="bridges\CNETBridge.php" />
+    <Compile Include="bridges\CollegeDeFranceBridge.php" />
+    <Compile Include="bridges\CommonDreamsBridge.php" />
+    <Compile Include="bridges\CopieDoubleBridge.php" />
+    <Compile Include="bridges\CourrierInternationalBridge.php" />
+    <Compile Include="bridges\CpasbienBridge.php" />
+    <Compile Include="bridges\CryptomeBridge.php" />
+    <Compile Include="bridges\DailymotionBridge.php" />
+    <Compile Include="bridges\DanbooruBridge.php" />
+    <Compile Include="bridges\DansTonChatBridge.php" />
+    <Compile Include="bridges\DauphineLibereBridge.php" />
+    <Compile Include="bridges\DemoBridge.php" />
+    <Compile Include="bridges\DeveloppezDotComBridge.php" />
+    <Compile Include="bridges\DiceBridge.php" />
+    <Compile Include="bridges\DilbertBridge.php" />
+    <Compile Include="bridges\DollbooruBridge.php" />
+    <Compile Include="bridges\DuckDuckGoBridge.php" />
+    <Compile Include="bridges\EliteDangerousGalnetBridge.php" />
+    <Compile Include="bridges\ElsevierBridge.php" />
+    <Compile Include="bridges\EstCeQuonMetEnProdBridge.php" />
+    <Compile Include="bridges\EtsyBridge.php" />
+    <Compile Include="bridges\EZTVBridge.php" />
+    <Compile Include="bridges\FacebookBridge.php" />
+    <Compile Include="bridges\FB2Bridge.php" />
+    <Compile Include="bridges\FeedExpanderExampleBridge.php" />
+    <Compile Include="bridges\FierPandaBridge.php" />
+    <Compile Include="bridges\FlickrBridge.php" />
+    <Compile Include="bridges\FootitoBridge.php" />
+    <Compile Include="bridges\FourchanBridge.php" />
+    <Compile Include="bridges\FuturaSciencesBridge.php" />
+    <Compile Include="bridges\GBAtempBridge.php" />
+    <Compile Include="bridges\GelbooruBridge.php" />
+    <Compile Include="bridges\GiphyBridge.php" />
+    <Compile Include="bridges\GithubIssueBridge.php" />
+    <Compile Include="bridges\GithubSearchBridge.php" />
+    <Compile Include="bridges\GizmodoBridge.php" />
+    <Compile Include="bridges\GoComicsBridge.php" />
+    <Compile Include="bridges\GooglePlusPostBridge.php" />
+    <Compile Include="bridges\GoogleSearchBridge.php" />
+    <Compile Include="bridges\HDWallpapersBridge.php" />
+    <Compile Include="bridges\HentaiHavenBridge.php" />
+    <Compile Include="bridges\IdenticaBridge.php" />
+    <Compile Include="bridges\InstagramBridge.php" />
+    <Compile Include="bridges\IsoHuntBridge.php" />
+    <Compile Include="bridges\JapanExpoBridge.php" />
+    <Compile Include="bridges\KATBridge.php" />
+    <Compile Include="bridges\KernelBugTrackerBridge.php" />
+    <Compile Include="bridges\KonachanBridge.php" />
+    <Compile Include="bridges\KoreusBridge.php" />
+    <Compile Include="bridges\KununuBridge.php" />
+    <Compile Include="bridges\LeBonCoinBridge.php" />
+    <Compile Include="bridges\LegifranceJOBridge.php" />
+    <Compile Include="bridges\LeMondeInformatiqueBridge.php" />
+    <Compile Include="bridges\LesJoiesDuCodeBridge.php" />
+    <Compile Include="bridges\LichessBridge.php" />
+    <Compile Include="bridges\LinkedInCompanyBridge.php" />
+    <Compile Include="bridges\LolibooruBridge.php" />
+    <Compile Include="bridges\LWNprevBridge.php" />
+    <Compile Include="bridges\MangareaderBridge.php" />
+    <Compile Include="bridges\MilbooruBridge.php" />
+    <Compile Include="bridges\MixCloudBridge.php" />
+    <Compile Include="bridges\MoebooruBridge.php" />
+    <Compile Include="bridges\MoinMoinBridge.php" />
+    <Compile Include="bridges\MondeDiploBridge.php" />
+    <Compile Include="bridges\MsnMondeBridge.php" />
+    <Compile Include="bridges\MspabooruBridge.php" />
+    <Compile Include="bridges\NasaApodBridge.php" />
+    <Compile Include="bridges\NeuviemeArtBridge.php" />
+    <Compile Include="bridges\NextgovBridge.php" />
+    <Compile Include="bridges\NextInpactBridge.php" />
+    <Compile Include="bridges\NiceMatinBridge.php" />
+    <Compile Include="bridges\NovelUpdatesBridge.php" />
+    <Compile Include="bridges\OpenClassroomsBridge.php" />
+    <Compile Include="bridges\ParuVenduImmoBridge.php" />
+    <Compile Include="bridges\PickyWallpapersBridge.php" />
+    <Compile Include="bridges\PinterestBridge.php" />
+    <Compile Include="bridges\PlanetLibreBridge.php" />
+    <Compile Include="bridges\RainbowSixSiegeBridge.php" />
+    <Compile Include="bridges\ReadComicsBridge.php" />
+    <Compile Include="bridges\Releases3DSBridge.php" />
+    <Compile Include="bridges\ReporterreBridge.php" />
+    <Compile Include="bridges\RTBFBridge.php" />
+    <Compile Include="bridges\Rue89Bridge.php" />
+    <Compile Include="bridges\Rule34Bridge.php" />
+    <Compile Include="bridges\Rule34pahealBridge.php" />
+    <Compile Include="bridges\SafebooruBridge.php" />
+    <Compile Include="bridges\SakugabooruBridge.php" />
+    <Compile Include="bridges\ScmbBridge.php" />
+    <Compile Include="bridges\ScoopItBridge.php" />
+    <Compile Include="bridges\SensCritiqueBridge.php" />
+    <Compile Include="bridges\SexactuBridge.php" />
+    <Compile Include="bridges\ShanaprojectBridge.php" />
+    <Compile Include="bridges\Shimmie2Bridge.php" />
+    <Compile Include="bridges\SoundcloudBridge.php" />
+    <Compile Include="bridges\StripeAPIChangeLogBridge.php" />
+    <Compile Include="bridges\SuperbWallpapersBridge.php" />
+    <Compile Include="bridges\T411Bridge.php" />
+    <Compile Include="bridges\TagBoardBridge.php" />
+    <Compile Include="bridges\TbibBridge.php" />
+    <Compile Include="bridges\TheCodingLoveBridge.php" />
+    <Compile Include="bridges\TheHackerNewsBridge.php" />
+    <Compile Include="bridges\ThePirateBayBridge.php" />
+    <Compile Include="bridges\TheTVDBBridge.php" />
+    <Compile Include="bridges\Torrent9Bridge.php" />
+    <Compile Include="bridges\TwitterBridge.php" />
+    <Compile Include="bridges\UnsplashBridge.php" />
+    <Compile Include="bridges\UsbekEtRicaBridge.php" />
+    <Compile Include="bridges\ViadeoCompanyBridge.php" />
+    <Compile Include="bridges\VineBridge.php" />
+    <Compile Include="bridges\VkBridge.php" />
+    <Compile Include="bridges\WallpaperStopBridge.php" />
+    <Compile Include="bridges\WebfailBridge.php" />
+    <Compile Include="bridges\WeLiveSecurityBridge.php" />
+    <Compile Include="bridges\WhydBridge.php" />
+    <Compile Include="bridges\WikiLeaksBridge.php" />
+    <Compile Include="bridges\WikipediaBridge.php" />
+    <Compile Include="bridges\WordPressBridge.php" />
+    <Compile Include="bridges\WordPressPluginUpdateBridge.php" />
+    <Compile Include="bridges\WorldOfTanksBridge.php" />
+    <Compile Include="bridges\XbooruBridge.php" />
+    <Compile Include="bridges\YandereBridge.php" />
+    <Compile Include="bridges\YoutubeApiBridge.php" />
+    <Compile Include="bridges\YoutubeBridge.php" />
+    <Compile Include="bridges\ZDNetBridge.php" />
+    <Compile Include="caches\FileCache.php" />
+    <Compile Include="formats\AtomFormat.php" />
+    <Compile Include="formats\HtmlFormat.php" />
+    <Compile Include="formats\JsonFormat.php" />
+    <Compile Include="formats\MrssFormat.php" />
+    <Compile Include="formats\PlaintextFormat.php" />
+    <Compile Include="lib\Bridge.php" />
+    <Compile Include="lib\BridgeAbstract.php" />
+    <Compile Include="lib\BridgeInterface.php" />
+    <Compile Include="lib\Cache.php" />
+    <Compile Include="lib\CacheInterface.php" />
+    <Compile Include="lib\contents.php" />
+    <Compile Include="lib\error.php" />
+    <Compile Include="lib\Exceptions.php" />
+    <Compile Include="lib\FeedExpander.php" />
+    <Compile Include="lib\Format.php" />
+    <Compile Include="lib\FormatAbstract.php" />
+    <Compile Include="lib\FormatInterface.php" />
+    <Compile Include="lib\html.php" />
+    <Compile Include="lib\RssBridge.php" />
+    <Compile Include="lib\validation.php" />
+    <Compile Include="static\HtmlFormat.css" />
+    <Compile Include="static\search.js" />
+    <Compile Include="static\style.css" />
+    <Compile Include=".travis.yml" />
+    <Compile Include="CHANGELOG.md" />
+    <Compile Include="CONTRIBUTING.md" />
+    <Compile Include="index.php" />
+    <Compile Include="phpcs.xml" />
+    <Compile Include="README.md" />
+    <Compile Include="scalingo.json" />
+    <Compile Include="UNLICENSE" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="bridges" />
+    <Folder Include="caches" />
+    <Folder Include="formats" />
+    <Folder Include="lib" />
+    <Folder Include="static" />
+  </ItemGroup>
+</Project>

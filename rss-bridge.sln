@@ -1,0 +1,20 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 15
+VisualStudioVersion = 15.0.26403.7
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{A0786B88-2ADB-4C21-ABE8-AA2D79766269}") = "rss-bridge", "rss-bridge.phpproj", "{66ABC6A4-3DED-4B7C-B81C-FCB1F48CA698}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{66ABC6A4-3DED-4B7C-B81C-FCB1F48CA698}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{66ABC6A4-3DED-4B7C-B81C-FCB1F48CA698}.Release|Any CPU.ActiveCfg = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
