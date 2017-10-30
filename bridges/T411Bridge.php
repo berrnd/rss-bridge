@@ -3,7 +3,7 @@ class T411Bridge extends BridgeAbstract {
 
 	const MAINTAINER = 'ORelio';
 	const NAME = 'T411 Bridge';
-	const URI = 'https://www.t411.li/';
+	const URI = 'https://www.t411.al/';
 	const DESCRIPTION = 'Returns the 10 newest torrents with specified search
  terms <br /> Use url part after "?" mark when using their search engine.';
 
@@ -18,7 +18,7 @@ class T411Bridge extends BridgeAbstract {
 
 		//Utility function for retrieving text based on start and end delimiters
 		function extractFromDelimiters($string, $start, $end){
-			if(strpos($string, $start) !== false){
+			if(strpos($string, $start) !== false) {
 				$section_retrieved = substr($string, strpos($string, $start) + strlen($start));
 				$section_retrieved = substr($section_retrieved, 0, strpos($section_retrieved, $end));
 				return $section_retrieved;
@@ -42,13 +42,13 @@ class T411Bridge extends BridgeAbstract {
 		$limit = 0;
 
 		//Process each item individually
-		foreach($results->find('tr') as $element){
+		foreach($results->find('tr') as $element) {
 
 			//Limit total amount of requests and ignore table header
-			if($limit >= 10){
+			if($limit >= 10) {
 				break;
 			}
-			if(is_object($element->find('th', 0))){
+			if(is_object($element->find('th', 0))) {
 				continue;
 			}
 
@@ -65,7 +65,7 @@ class T411Bridge extends BridgeAbstract {
 
 			//Retrieve full description from torrent page
 			$item_html = getSimpleHTMLDOM($item_uri);
-			if(!$item_html){
+			if(!$item_html) {
 				continue;
 			}
 

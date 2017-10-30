@@ -25,26 +25,32 @@ error_reporting(0);
 // Specify directory for cached files (using FileCache)
 define('CACHE_DIR', __DIR__ . '/cache');
 
+// Specify path for whitelist file
+define('WHITELIST_FILE', __DIR__ . '/whitelist.txt');
+
+
+/*
+Move the CLI arguments to the $_GET array, in order to be able to use
+rss-bridge from the command line
+*/
+parse_str(implode('&', array_slice($argv, 1)), $cliArgs);
+$params = array_merge($_GET, $cliArgs);
+
 /*
   Create a file named 'DEBUG' for enabling debug mode.
-  For further security, you may put whitelisted IP addresses
-  in the 'DEBUG' file, one IP per line. Empty file allows anyone(!).
-  Debugging allows displaying PHP error messages and bypasses the cache: this can allow a malicious
-  client to retrieve data about your server and hammer a provider throught your rss-bridge instance.
+  For further security, you may put whitelisted IP addresses in the file,
+  one IP per line. Empty file allows anyone(!).
+  Debugging allows displaying PHP error messages and bypasses the cache: this
+  can allow a malicious client to retrieve data about your server and hammer
+  a provider throught your rss-bridge instance.
 */
-if(file_exists('DEBUG')){
-	$debug_enabled = true;
+if(file_exists('DEBUG')) {
 	$debug_whitelist = trim(file_get_contents('DEBUG'));
-	if(strlen($debug_whitelist) > 0){
-		$debug_enabled = false;
-		foreach(explode("\n", $debug_whitelist) as $allowed_ip){
-			if(trim($allowed_ip) === $_SERVER['REMOTE_ADDR']){
-				$debug_enabled = true;
-				break;
-			}
-		}
-	}
-	if($debug_enabled){
+
+	$debug_enabled = empty($debug_whitelist)
+	|| in_array($_SERVER['REMOTE_ADDR'], explode("\n", $debug_whitelist));
+
+	if($debug_enabled) {
 		ini_set('display_errors', '1');
 		error_reporting(E_ALL);
 		define('DEBUG', true);
@@ -68,6 +74,14 @@ if(!extension_loaded('libxml'))
 if(ini_get('allow_url_fopen') !== "1")
 	die('"allow_url_fopen" is not set to "1". Please check "php.ini');
 
+// Check cache folder permissions (write permissions required)
+if(!is_writable(CACHE_DIR))
+	die('RSS-Bridge does not have write permissions for ' . CACHE_DIR . '!');
+
+// Check whitelist file permissions (only in DEBUG mode)
+if(!file_exists(WHITELIST_FILE) && !is_writable(dirname(WHITELIST_FILE)))
+	die('RSS-Bridge does not have write permissions for ' . WHITELIST_FILE . '!');
+
 // FIXME : beta test UA spoofing, please report any blacklisting by PHP-fopen-unfriendly websites
 
 $userAgent = 'Mozilla/5.0(X11; Linux x86_64; rv:30.0)';
@@ -77,24 +91,23 @@ $userAgent .= '+https://github.com/RSS-Bridge/rss-bridge)';
 ini_set('user_agent', $userAgent);
 
 // default whitelist
-$whitelist_file = './whitelist.txt';
 $whitelist_default = array(
-	"BandcampBridge",
-	"CryptomeBridge",
-	"DansTonChatBridge",
-	"DuckDuckGoBridge",
-	"FacebookBridge",
-	"FlickrExploreBridge",
-	"GooglePlusPostBridge",
-	"GoogleSearchBridge",
-	"IdenticaBridge",
-	"InstagramBridge",
-	"OpenClassroomsBridge",
-	"PinterestBridge",
-	"ScmbBridge",
-	"TwitterBridge",
-	"WikipediaBridge",
-	"YoutubeBridge");
+	'BandcampBridge',
+	'CryptomeBridge',
+	'DansTonChatBridge',
+	'DuckDuckGoBridge',
+	'FacebookBridge',
+	'FlickrExploreBridge',
+	'GooglePlusPostBridge',
+	'GoogleSearchBridge',
+	'IdenticaBridge',
+	'InstagramBridge',
+	'OpenClassroomsBridge',
+	'PinterestBridge',
+	'ScmbBridge',
+	'TwitterBridge',
+	'WikipediaBridge',
+	'YoutubeBridge');
 
 try {
 
@@ -102,40 +115,44 @@ try {
 	Format::setDir(__DIR__ . '/formats/');
 	Cache::setDir(__DIR__ . '/caches/');
 
-	if(!file_exists($whitelist_file)){
+	if(!file_exists(WHITELIST_FILE)) {
 		$whitelist_selection = $whitelist_default;
 		$whitelist_write = implode("\n", $whitelist_default);
-		file_put_contents($whitelist_file, $whitelist_write);
+		file_put_contents(WHITELIST_FILE, $whitelist_write);
 	} else {
 
-		$whitelist_file_content = file_get_contents($whitelist_file);
+		$whitelist_file_content = file_get_contents(WHITELIST_FILE);
 		if($whitelist_file_content != "*\n") {
 			$whitelist_selection = explode("\n", $whitelist_file_content);
 		} else {
 			$whitelist_selection = Bridge::listBridges();
 		}
+
+		// Prepare for case-insensitive match
+		$whitelist_selection = array_map('strtolower', $whitelist_selection);
 	}
 
-	$action = filter_input(INPUT_GET, 'action');
-	$bridge = filter_input(INPUT_GET, 'bridge');
+	$action = array_key_exists('action', $params) ? $params['action'] : null;
+	$bridge = array_key_exists('bridge', $params) ? $params['bridge'] : null;
 
-	if($action === 'display' && !empty($bridge)){
+	if($action === 'display' && !empty($bridge)) {
 		// DEPRECATED: 'nameBridge' scheme is replaced by 'name' in bridge parameter values
 		//             this is to keep compatibility until futher complete removal
-		if(($pos = strpos($bridge, 'Bridge')) === (strlen($bridge) - strlen('Bridge'))){
+		if(($pos = strpos($bridge, 'Bridge')) === (strlen($bridge) - strlen('Bridge'))) {
 			$bridge = substr($bridge, 0, $pos);
 		}
 
-		$format = filter_input(INPUT_GET, 'format');
+		$format = $params['format']
+			or returnClientError('You must specify a format!');
 
 		// DEPRECATED: 'nameFormat' scheme is replaced by 'name' in format parameter values
 		//             this is to keep compatibility until futher complete removal
-		if(($pos = strpos($format, 'Format')) === (strlen($format) - strlen('Format'))){
+		if(($pos = strpos($format, 'Format')) === (strlen($format) - strlen('Format'))) {
 			$format = substr($format, 0, $pos);
 		}
 
 		// whitelist control
-		if(!Bridge::isWhitelisted($whitelist_selection, $bridge)){
+		if(!Bridge::isWhitelisted($whitelist_selection, strtolower($bridge))) {
 			throw new \HttpException('This bridge is not whitelisted', 401);
 			die;
 		}
@@ -143,12 +160,10 @@ try {
 		// Data retrieval
 		$bridge = Bridge::create($bridge);
 
-		$noproxy = filter_input(INPUT_GET, '_noproxy', FILTER_VALIDATE_BOOLEAN);
-		if(defined('PROXY_URL') && PROXY_BYBRIDGE && $noproxy){
+		$noproxy = array_key_exists('_noproxy', $params) && filter_var($params['_noproxy'], FILTER_VALIDATE_BOOLEAN);
+		if(defined('PROXY_URL') && PROXY_BYBRIDGE && $noproxy) {
 			define('NOPROXY', true);
 		}
-
-		$params = $_GET;
 
 		// Initialize cache
 		$cache = Cache::create('FileCache');
@@ -162,8 +177,14 @@ try {
 		unset($params['_noproxy']);
 
 		// Load cache & data
-		$bridge->setCache($cache);
-		$bridge->setDatas($params);
+		try {
+			$bridge->setCache($cache);
+			$bridge->setDatas($params);
+		} catch(Exception $e) {
+			http_response_code($e->getCode());
+			header('Content-Type: text/html');
+			die(buildBridgeException($e, $bridge));
+		}
 
 		// Data transformation
 		try {
@@ -171,20 +192,19 @@ try {
 			$format->setItems($bridge->getItems());
 			$format->setExtraInfos($bridge->getExtraInfos());
 			$format->display();
-		} catch(Exception $e){
-			echo "The bridge has crashed. You should report this to the bridges maintainer";
+		} catch(Exception $e) {
+			http_response_code($e->getCode());
+			header('Content-Type: text/html');
+			die(buildTransformException($e, $bridge));
 		}
+
 		die;
 	}
-}
-
-catch(HttpException $e){
-	header('HTTP/1.1 ' . $e->getCode() . ' ' . Http::getMessageForCode($e->getCode()));
+} catch(HttpException $e) {
+	http_response_code($e->getCode());
 	header('Content-Type: text/plain');
 	die($e->getMessage());
-}
-
-catch(\Exception $e){
+} catch(\Exception $e) {
 	die($e->getMessage());
 }
 
@@ -200,6 +220,7 @@ $formats = Format::searchInformation();
 	<title>RSS-Bridge</title>
 	<link href="static/style.css" rel="stylesheet">
 	<script src="static/search.js"></script>
+	<script src="static/select.js"></script>
 	<noscript>
 		<style>
 			.searchbar {
@@ -212,9 +233,11 @@ $formats = Format::searchInformation();
 <body onload="search()">
 	<?php
 		$status = '';
-		if(defined('DEBUG') && DEBUG === true){
+		if(defined('DEBUG') && DEBUG === true) {
 			$status .= 'debug mode active';
 		}
+
+		$query = filter_input(INPUT_GET, 'q');
 
 		echo <<<EOD
 	<header>
@@ -226,7 +249,7 @@ $formats = Format::searchInformation();
 		<h3>Search</h3>
 		<input type="text" name="searchfield"
 			id="searchfield" placeholder="Enter the bridge you want to search for"
-			onchange="search()" onkeyup="search()">
+			onchange="search()" onkeyup="search()" value="{$query}">
 	</section>
 
 EOD;
@@ -235,8 +258,8 @@ EOD;
 		$showInactive = filter_input(INPUT_GET, 'show_inactive', FILTER_VALIDATE_BOOLEAN);
 		$inactiveBridges = '';
 		$bridgeList = Bridge::listBridges();
-		foreach($bridgeList as $bridgeName){
-			if(Bridge::isWhitelisted($whitelist_selection, $bridgeName)){
+		foreach($bridgeList as $bridgeName) {
+			if(Bridge::isWhitelisted($whitelist_selection, strtolower($bridgeName))) {
 				echo displayBridgeCard($bridgeName, $formats);
 						$activeFoundBridgeCount++;
 			} elseif($showInactive) {
@@ -247,10 +270,10 @@ EOD;
 		echo $inactiveBridges;
 	?>
 	<section class="footer">
-		<a href="https://github.com/RSS-Bridge/rss-bridge">RSS-Bridge alpha 0.2 ~ Public Domain</a><br />
+		<a href="https://github.com/RSS-Bridge/rss-bridge">RSS-Bridge 2017-08-19 ~ Public Domain</a><br />
 		<?= $activeFoundBridgeCount; ?>/<?= count($bridgeList) ?> active bridges. <br />
 		<?php
-			if($activeFoundBridgeCount !== count($bridgeList)){
+			if($activeFoundBridgeCount !== count($bridgeList)) {
 				// FIXME: This should be done in pure CSS
 				if(!$showInactive)
 					echo '<a href="?show_inactive=1"><button class="small">Show inactive bridges</button></a><br />';
