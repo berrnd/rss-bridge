@@ -60,17 +60,15 @@ class Arte7Bridge extends BridgeAbstract {
 			break;
 		}
 
-		$url = 'https://api.arte.tv/api/opa/v3/videos?sort=broadcastBegin&limit=10&language='
+		$url = 'https://api.arte.tv/api/opa/v3/videos?sort=-lastModified&limit=10&language='
 			. $lang
 			. ($category != null ? '&category.code=' . $category : '');
 
-		$context = array(
-			'http' => array(
-				'header' => 'Authorization: Bearer '. self::API_TOKEN
-			)
+		$header = array(
+			'Authorization: Bearer ' . self::API_TOKEN
 		);
 
-		$input = getContents($url, false, stream_context_create($context)) or die('Could not request ARTE.');
+		$input = getContents($url, $header) or die('Could not request ARTE.');
 		$input_json = json_decode($input, true);
 
 		foreach($input_json['videos'] as $element) {

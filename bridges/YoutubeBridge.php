@@ -50,12 +50,28 @@ class YoutubeBridge extends BridgeAbstract {
 
 	private function ytBridgeQueryVideoInfo($vid, &$author, &$desc, &$time){
 		$html = $this->ytGetSimpleHTMLDOM(self::URI . "watch?v=$vid");
-		$author = $html->innertext;
-		$author = substr($author, strpos($author, '"author=') + 8);
-		$author = substr($author, 0, strpos($author, '\u0026'));
 
-		if(!is_null($html->find('div#watch-description-text', 0)))
-			$desc = $html->find('div#watch-description-text', 0)->innertext;
+		// Skip unavailable videos
+		if(!strpos($html->innertext, 'IS_UNAVAILABLE_PAGE')) {
+			return;
+		}
+
+		foreach($html->find('script') as $script) {
+			$data = trim($script->innertext);
+
+			if(strpos($data, '{') !== 0)
+				continue; // Wrong script
+
+			$json = json_decode($data);
+
+			if(!isset($json->itemListElement))
+				continue; // Wrong script
+
+			$author = $json->itemListElement[0]->item->name;
+		}
+
+		if(!is_null($html->find('#watch-description-text', 0)))
+			$desc = $html->find('#watch-description-text', 0)->innertext;
 
 		if(!is_null($html->find('meta[itemprop=datePublished]', 0)))
 			$time = strtotime($html->find('meta[itemprop=datePublished]', 0)->getAttribute('content'));
@@ -91,11 +107,11 @@ class YoutubeBridge extends BridgeAbstract {
 			if(strpos($vid, 'googleads') === false)
 				$this->ytBridgeAddItem($vid, $title, $author, $desc, $time);
 		}
-		$this->request = $this->ytBridgeFixTitle($xml->find('feed > title', 0)->plaintext);
+		$this->feedName = $this->ytBridgeFixTitle($xml->find('feed > title', 0)->plaintext);  // feedName will be used by getName()
 	}
 
-	private function ytBridgeParseHtmlListing($html, $element_selector, $title_selector){
-		$limit = 10;
+	private function ytBridgeParseHtmlListing($html, $element_selector, $title_selector, $add_parsed_items = true) {
+		$limit = $add_parsed_items ? 10 : INF;
 		$count = 0;
 		foreach($html->find($element_selector) as $element) {
 			if($count < $limit) {
@@ -106,12 +122,15 @@ class YoutubeBridge extends BridgeAbstract {
 				$vid = substr($vid, 0, strpos($vid, '&') ?: strlen($vid));
 				$title = $this->ytBridgeFixTitle($element->find($title_selector, 0)->plaintext);
 				if($title != '[Private Video]' && strpos($vid, 'googleads') === false) {
-					$this->ytBridgeQueryVideoInfo($vid, $author, $desc, $time);
-					$this->ytBridgeAddItem($vid, $title, $author, $desc, $time);
+					if ($add_parsed_items) {
+						$this->ytBridgeQueryVideoInfo($vid, $author, $desc, $time);
+						$this->ytBridgeAddItem($vid, $title, $author, $desc, $time);
+					}
 					$count++;
 				}
 			}
 		}
+		return $count;
 	}
 
 	private function ytBridgeFixTitle($title) {
@@ -121,10 +140,8 @@ class YoutubeBridge extends BridgeAbstract {
 
 	private function ytGetSimpleHTMLDOM($url){
 		return getSimpleHTMLDOM($url,
-			$use_include_path = false,
-			$context = null,
-			$offset = 0,
-			$maxLen = null,
+			$header = array(),
+			$opts = array(),
 			$lowercase = true,
 			$forceTagsClosed = true,
 			$target_charset = DEFAULT_TARGET_CHARSET,
@@ -160,11 +177,20 @@ class YoutubeBridge extends BridgeAbstract {
 			}
 		} elseif($this->getInput('p')) { /* playlist mode */
 			$this->request = $this->getInput('p');
+			$url_feed = self::URI . 'feeds/videos.xml?playlist_id=' . urlencode($this->request);
 			$url_listing = self::URI . 'playlist?list=' . urlencode($this->request);
 			$html = $this->ytGetSimpleHTMLDOM($url_listing)
 				or returnServerError("Could not request YouTube. Tried:\n - $url_listing");
-			$this->ytBridgeParseHtmlListing($html, 'tr.pl-video', '.pl-video-title a');
-			$this->request = 'Playlist: ' . str_replace(' - YouTube', '', $html->find('title', 0)->plaintext);
+			$item_count = $this->ytBridgeParseHtmlListing($html, 'tr.pl-video', '.pl-video-title a', false);
+			if ($item_count <= 15 && ($xml = $this->ytGetSimpleHTMLDOM($url_feed))) {
+				$this->ytBridgeParseXmlFeed($xml);
+			} else {
+				$this->ytBridgeParseHtmlListing($html, 'tr.pl-video', '.pl-video-title a');
+			}
+			$this->feedName = 'Playlist: ' . str_replace(' - YouTube', '', $html->find('title', 0)->plaintext); // feedName will be used by getName()
+			usort($this->items, function ($item1, $item2) {
+				return $item2['timestamp'] - $item1['timestamp'];
+			});
 		} elseif($this->getInput('s')) { /* search mode */
 			$this->request = $this->getInput('s');
 			$page = 1;
@@ -181,8 +207,8 @@ class YoutubeBridge extends BridgeAbstract {
 			$html = $this->ytGetSimpleHTMLDOM($url_listing)
 				or returnServerError("Could not request YouTube. Tried:\n - $url_listing");
 
-			$this->ytBridgeParseHtmlListing($html, 'div.yt-lockup', 'h3');
-			$this->request = 'Search: ' . str_replace(' - YouTube', '', $html->find('title', 0)->plaintext);
+			$this->ytBridgeParseHtmlListing($html, 'div.yt-lockup', 'h3 > a');
+			$this->feedName = 'Search: ' . str_replace(' - YouTube', '', $html->find('title', 0)->plaintext); // feedName will be used by getName()
 		} else { /* no valid mode */
 			returnClientError("You must either specify either:\n - YouTube
  username (?u=...)\n - Channel id (?c=...)\n - Playlist id (?p=...)\n - Search (?s=...)");
@@ -190,6 +216,15 @@ class YoutubeBridge extends BridgeAbstract {
 	}
 
 	public function getName(){
-		return (!empty($this->request) ? $this->request . ' - ' : '') . 'YouTube Bridge';
-	}
+	  // Name depends on queriedContext:
+		switch($this->queriedContext) {
+		case 'By username':
+		case 'By channel id':
+		case 'By playlist Id':
+		case 'Search result':
+			return $this->feedName . ' - YouTube'; // We already know it's a bridge, right?
+		default:
+			return parent::getName();
+		}
+  }
 }
