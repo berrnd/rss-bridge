@@ -24,15 +24,15 @@ abstract class FeedExpander extends BridgeAbstract {
 		switch(true) {
 		case isset($rssContent->item[0]):
 			debugMessage('Detected RSS 1.0 format');
-			$this->feedType = "RSS_1_0";
+			$this->feedType = 'RSS_1_0';
 			break;
 		case isset($rssContent->channel[0]):
 			debugMessage('Detected RSS 0.9x or 2.0 format');
-			$this->feedType = "RSS_2_0";
+			$this->feedType = 'RSS_2_0';
 			break;
 		case isset($rssContent->entry[0]):
 			debugMessage('Detected ATOM format');
-			$this->feedType = "ATOM_1_0";
+			$this->feedType = 'ATOM_1_0';
 			break;
 		default:
 			debugMessage('Unknown feed format/version');
@@ -115,12 +115,27 @@ abstract class FeedExpander extends BridgeAbstract {
 	}
 
 	protected function parseATOMItem($feedItem){
-		$item = array();
+		// Some ATOM entries also contain RSS 2.0 fields
+		$item = $this->parseRSS_2_0_Item($feedItem);
+
 		if(isset($feedItem->id)) $item['uri'] = (string)$feedItem->id;
 		if(isset($feedItem->title)) $item['title'] = (string)$feedItem->title;
 		if(isset($feedItem->updated)) $item['timestamp'] = strtotime((string)$feedItem->updated);
 		if(isset($feedItem->author)) $item['author'] = (string)$feedItem->author->name;
 		if(isset($feedItem->content)) $item['content'] = (string)$feedItem->content;
+
+		//When "link" field is present, URL is more reliable than "id" field
+		if (count($feedItem->link) === 1) {
+			$this->uri = (string)$feedItem->link[0]['href'];
+		} else {
+			foreach($feedItem->link as $link) {
+				if(strtolower($link['rel']) === 'alternate') {
+					$item['uri'] = (string)$link['href'];
+					break;
+				}
+			}
+		}
+
 		return $item;
 	}
 
@@ -130,6 +145,7 @@ abstract class FeedExpander extends BridgeAbstract {
 		if(isset($feedItem->title)) $item['title'] = (string)$feedItem->title;
 		// rss 0.91 doesn't support timestamps
 		// rss 0.91 doesn't support authors
+		// rss 0.91 doesn't support enclosures
 		if(isset($feedItem->description)) $item['content'] = (string)$feedItem->description;
 		return $item;
 	}
@@ -154,11 +170,17 @@ abstract class FeedExpander extends BridgeAbstract {
 
 		$namespaces = $feedItem->getNamespaces(true);
 		if(isset($namespaces['dc'])) $dc = $feedItem->children($namespaces['dc']);
+		if(isset($namespaces['media'])) $media = $feedItem->children($namespaces['media']);
 
 		if(isset($feedItem->guid)) {
 			foreach($feedItem->guid->attributes() as $attribute => $value) {
 				if($attribute === 'isPermaLink'
-				&& ($value === 'true' || filter_var($feedItem->guid, FILTER_VALIDATE_URL))) {
+					&& ($value === 'true' || (
+							filter_var($feedItem->guid, FILTER_VALIDATE_URL)
+							&& !filter_var($item['uri'], FILTER_VALIDATE_URL)
+						)
+					)
+				) {
 					$item['uri'] = (string)$feedItem->guid;
 					break;
 				}
@@ -170,11 +192,21 @@ abstract class FeedExpander extends BridgeAbstract {
 		} elseif(isset($dc->date)) {
 			$item['timestamp'] = strtotime((string)$dc->date);
 		}
+
 		if(isset($feedItem->author)) {
 			$item['author'] = (string)$feedItem->author;
+		} elseif (isset($feedItem->creator)) {
+			$item['author'] = (string)$feedItem->creator;
 		} elseif(isset($dc->creator)) {
 			$item['author'] = (string)$dc->creator;
+		} elseif(isset($media->credit)) {
+				$item['author'] = (string)$media->credit;
 		}
+
+		if(isset($feedItem->enclosure) && !empty($feedItem->enclosure['url'])) {
+			$item['enclosures'] = array((string)$feedItem->enclosure['url']);
+		}
+
 		return $item;
 	}
 
@@ -199,10 +231,14 @@ abstract class FeedExpander extends BridgeAbstract {
 	}
 
 	public function getURI(){
-		return $this->uri ?: parent::getURI();
+		return !empty($this->uri) ? $this->uri : parent::getURI();
 	}
 
 	public function getName(){
-		return $this->name ?: parent::getName();
+		return !empty($this->name) ? $this->name : parent::getName();
+	}
+
+	public function getIcon(){
+		return !empty($this->icon) ? $this->icon : parent::getIcon();
 	}
 }

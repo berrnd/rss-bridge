@@ -117,53 +117,6 @@ abstract class BridgeAbstract implements BridgeInterface {
 	}
 
 	/**
-	 * Returns the name of the context matching the provided inputs
-	 *
-	 * @param array $inputs Associative array of inputs
-	 * @return mixed Returns the context name or null if no match was found
-	 */
-	protected function getQueriedContext(array $inputs){
-		$queriedContexts = array();
-
-		// Detect matching context
-		foreach(static::PARAMETERS as $context => $set) {
-			$queriedContexts[$context] = null;
-
-			// Check if all parameters of the context are satisfied
-			foreach($set as $id => $properties) {
-				if(isset($inputs[$id]) && !empty($inputs[$id])) {
-					$queriedContexts[$context] = true;
-				} elseif(isset($properties['required'])
-				&& $properties['required'] === true) {
-					$queriedContexts[$context] = false;
-					break;
-				}
-			}
-
-		}
-
-		// Abort if one of the globally required parameters is not satisfied
-		if(array_key_exists('global', static::PARAMETERS)
-		&& $queriedContexts['global'] === false) {
-			return null;
-		}
-		unset($queriedContexts['global']);
-
-		switch(array_sum($queriedContexts)) {
-		case 0: // Found no match, is there a context without parameters?
-			foreach($queriedContexts as $context => $queried) {
-				if(is_null($queried)) {
-					return $context;
-				}
-			}
-			return null;
-		case 1: // Found unique match
-			return array_search(true, $queriedContexts);
-		default: return false;
-		}
-	}
-
-	/**
 	* Defined datas with parameters depending choose bridge
 	* Note : you can define a cache with "setCache"
 	* @param array array with expected bridge paramters
@@ -195,12 +148,22 @@ abstract class BridgeAbstract implements BridgeInterface {
 			return;
 		}
 
-		if(!validateData($inputs, static::PARAMETERS)) {
-			returnClientError('Invalid parameters value(s)');
+		$validator = new ParameterValidator();
+
+		if(!$validator->validateData($inputs, static::PARAMETERS)) {
+			$parameters = array_map(
+				function($i){ return $i['name']; }, // Just display parameter names
+				$validator->getInvalidParameters()
+			);
+
+			returnClientError(
+				'Invalid parameters value(s): '
+				. implode(', ', $parameters)
+			);
 		}
 
 		// Guess the paramter context from input data
-		$this->queriedContext = $this->getQueriedContext($inputs);
+		$this->queriedContext = $validator->getQueriedContext($inputs, static::PARAMETERS);
 		if(is_null($this->queriedContext)) {
 			returnClientError('Required parameter(s) missing');
 		} elseif($this->queriedContext === false) {
@@ -246,6 +209,15 @@ abstract class BridgeAbstract implements BridgeInterface {
 		return static::NAME;
 	}
 
+	public function getIcon(){
+		// Return cached icon when bridge is using cached data
+		if(isset($this->extraInfos)) {
+			return $this->extraInfos['icon'];
+		}
+
+		return '';
+	}
+
 	public function getParameters(){
 		return static::PARAMETERS;
 	}
@@ -262,7 +234,8 @@ abstract class BridgeAbstract implements BridgeInterface {
 	public function getExtraInfos(){
 		return array(
 			'name' => $this->getName(),
-			'uri' => $this->getURI()
+			'uri' => $this->getURI(),
+			'icon' => $this->getIcon()
 		);
 	}
 
@@ -281,5 +254,28 @@ abstract class BridgeAbstract implements BridgeInterface {
 
 	public function getCacheTimeout(){
 		return isset($this->cacheTimeout) ? $this->cacheTimeout : static::CACHE_TIMEOUT;
+	}
+
+	public function getCacheTime(){
+		return !is_null($this->cache) ? $this->cache->getTime() : false;
+	}
+
+	public function dieIfNotModified(){
+		if ((defined('DEBUG') && DEBUG === true)) return; // disabled in debug mode
+
+		$if_modified_since = isset($_SERVER['HTTP_IF_MODIFIED_SINCE']) ? $_SERVER['HTTP_IF_MODIFIED_SINCE'] : false;
+		if (!$if_modified_since) return; // If-Modified-Since value is required
+
+		$last_modified = $this->getCacheTime();
+		if (!$last_modified) return; // did not detect cache time
+
+		if (time() - $this->getCacheTimeout() > $last_modified) return; // cache timeout
+
+		$last_modified = (gmdate('D, d M Y H:i:s ', $last_modified) . 'GMT');
+
+		if ($if_modified_since == $last_modified) {
+			header('HTTP/1.1 304 Not Modified');
+			die();
+		}
 	}
 }

@@ -21,13 +21,41 @@ function getContents($url, $header = array(), $opts = array()){
 		curl_setopt($ch, CURLOPT_PROXY, PROXY_URL);
 	}
 
-	$content = curl_exec($ch);
+	// We always want the response header as part of the data!
+	curl_setopt($ch, CURLOPT_HEADER, true);
+
+	$data = curl_exec($ch);
+	$curlError = curl_error($ch);
+	$curlErrno = curl_errno($ch);
+
+	if($data === false)
+		debugMessage('Cant\'t download ' . $url . ' cUrl error: ' . $curlError . ' (' . $curlErrno . ')');
+
+	$headerSize = curl_getinfo($ch, CURLINFO_HEADER_SIZE);
+	$errorCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+	$header = substr($data, 0, $headerSize);
+	$headers = parseResponseHeader($header);
+	$finalHeader = end($headers);
+
+	if($errorCode !== 200) {
+
+		if(array_key_exists('Server', $finalHeader) && strpos($finalHeader['Server'], 'cloudflare') !== false) {
+			returnServerError(<<< EOD
+The server responded with a Cloudflare challenge, which is not supported by RSS-Bridge!
+If this error persists longer than a week, please consider opening an issue on GitHub!
+EOD
+			);
+		}
+
+		returnError(<<<EOD
+The requested resouce cannot be found!
+Please make sure your input parameters are correct!
+EOD
+		, $errorCode);
+	}
+
 	curl_close($ch);
-
-	if($content === false)
-		debugMessage('Cant\'t download ' . $url);
-
-	return $content;
+	return substr($data, $headerSize);
 }
 
 function getSimpleHTMLDOM($url,
@@ -95,4 +123,91 @@ $defaultSpanText = DEFAULT_SPAN_TEXT){
 	$stripRN,
 	$defaultBRText,
 	$defaultSpanText);
+}
+
+/**
+ * Parses the provided response header into an associative array
+ *
+ * Based on https://stackoverflow.com/a/18682872
+ */
+function parseResponseHeader($header) {
+
+	$headers = array();
+	$requests = explode("\r\n\r\n", trim($header));
+
+	foreach ($requests as $request) {
+
+		$header = array();
+
+		foreach (explode("\r\n", $request) as $i => $line) {
+
+			if($i === 0) {
+				$header['http_code'] = $line;
+			} else {
+
+				list ($key, $value) = explode(': ', $line);
+				$header[$key] = $value;
+
+			}
+
+		}
+
+		$headers[] = $header;
+
+	}
+
+	return $headers;
+
+}
+
+/**
+ * Determine MIME type from URL/Path file extension
+ * Remark: Built-in functions mime_content_type or fileinfo requires fetching remote content
+ * Remark: A bridge can hint for a MIME type by appending #.ext to a URL, e.g. #.image
+ * Based on https://stackoverflow.com/a/1147952
+ */
+function getMimeType($url) {
+	static $mime = null;
+
+	if (is_null($mime)) {
+		// Default values, overriden by /etc/mime.types when present
+		$mime = array(
+			'jpg' => 'image/jpeg',
+			'gif' => 'image/gif',
+			'png' => 'image/png',
+			'image' => 'image/*'
+		);
+		// '@' is used to mute open_basedir warning, see issue #818
+		if (@is_readable('/etc/mime.types')) {
+			$file = fopen('/etc/mime.types', 'r');
+			while(($line = fgets($file)) !== false) {
+				$line = trim(preg_replace('/#.*/', '', $line));
+				if(!$line)
+					continue;
+				$parts = preg_split('/\s+/', $line);
+				if(count($parts) == 1)
+					continue;
+				$type = array_shift($parts);
+				foreach($parts as $part)
+					$mime[$part] = $type;
+			}
+			fclose($file);
+		}
+	}
+
+	if (strpos($url, '?') !== false) {
+		$url_temp = substr($url, 0, strpos($url, '?'));
+		if (strpos($url, '#') !== false) {
+			$anchor = substr($url, strpos($url, '#'));
+			$url_temp .= $anchor;
+		}
+		$url = $url_temp;
+	}
+
+	$ext = strtolower(pathinfo($url, PATHINFO_EXTENSION));
+	if (!empty($mime[$ext])) {
+		return $mime[$ext];
+	}
+
+	return 'application/octet-stream';
 }

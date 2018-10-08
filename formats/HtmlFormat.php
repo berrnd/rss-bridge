@@ -47,6 +47,20 @@ class HtmlFormat extends FormatAbstract {
 				$entryEnclosures .= '</div>';
 			}
 
+			$entryCategories = '';
+			if(isset($item['categories']) && count($item['categories']) > 0) {
+				$entryCategories = '<div class="categories"><p>Categories:</p>';
+
+				foreach($item['categories'] as $category) {
+
+					$entryCategories .= '<li class="category">'
+					. $this->sanitizeHtml($category)
+					. '</li>';
+				}
+
+				$entryCategories .= '</div>';
+			}
+
 			$entries .= <<<EOD
 
 <section class="feeditem">
@@ -55,6 +69,7 @@ class HtmlFormat extends FormatAbstract {
 	{$entryAuthor}
 	{$entryContent}
 	{$entryEnclosures}
+	{$entryCategories}
 </section>
 
 EOD;
@@ -70,6 +85,8 @@ EOD;
 	<meta charset="{$charset}">
 	<title>{$title}</title>
 	<link href="static/HtmlFormat.css" rel="stylesheet">
+	<link rel="alternate" type="application/atom+xml" title="Atom" href="./?{$atomquery}" />
+	<link rel="alternate" type="application/rss+xml" title="RSS" href="/?{$mrssquery}" />
 	<meta name="robots" content="noindex, follow">
 </head>
 <body>

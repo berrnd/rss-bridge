@@ -14,8 +14,12 @@ require __DIR__ . '/Bridge.php';
 require __DIR__ . '/BridgeAbstract.php';
 require __DIR__ . '/FeedExpander.php';
 require __DIR__ . '/Cache.php';
+require __DIR__ . '/Authentication.php';
+require __DIR__ . '/Configuration.php';
+require __DIR__ . '/BridgeCard.php';
+require __DIR__ . '/BridgeList.php';
+require __DIR__ . '/ParameterValidator.php';
 
-require __DIR__ . '/validation.php';
 require __DIR__ . '/html.php';
 require __DIR__ . '/error.php';
 require __DIR__ . '/contents.php';
@@ -29,6 +33,17 @@ if(!file_exists($vendorLibSimpleHtmlDom)) {
 	500);
 }
 require_once $vendorLibSimpleHtmlDom;
+
+$vendorLibPhpUrlJoin = __DIR__ . PATH_VENDOR . '/php-urljoin/src/urljoin.php';
+if(!file_exists($vendorLibPhpUrlJoin)) {
+	throw new \HttpException('"php-urljoin" library is missing.
+ Get it from https://github.com/fluffy-critter/php-urljoin and place the script "urljoin.php" in '
+		. substr(PATH_VENDOR, 4)
+		. '/php-urljoin/src/',
+	500);
+}
+require_once $vendorLibPhpUrlJoin;
+
 
 /* Example use
 
@@ -47,6 +62,7 @@ require_once $vendorLibSimpleHtmlDom;
 		->setExtraInfos(array(
 			'name' => $bridge->getName(),
 			'uri' => $bridge->getURI(),
+			'icon' => $bridge->getIcon(),
 		))
 		->display();
 

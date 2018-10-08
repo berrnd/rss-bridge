@@ -11,12 +11,19 @@ class AtomFormat extends FormatAbstract{
 		$httpHost = isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : '';
 		$httpInfo = isset($_SERVER['PATH_INFO']) ? $_SERVER['PATH_INFO'] : '';
 
-		$serverRequestUri = $this->xml_encode($_SERVER['REQUEST_URI']);
+		$serverRequestUri = isset($_SERVER['REQUEST_URI']) ? $this->xml_encode($_SERVER['REQUEST_URI']) : '';
 
 		$extraInfos = $this->getExtraInfos();
 		$title = $this->xml_encode($extraInfos['name']);
-		$uri = !empty($extraInfos['uri']) ? $extraInfos['uri'] : 'https://github.com/sebsauvage/rss-bridge';
-		$icon = $this->xml_encode('http://icons.better-idea.org/icon?url='. $uri .'&size=64');
+		$uri = !empty($extraInfos['uri']) ? $extraInfos['uri'] : 'https://github.com/RSS-Bridge/rss-bridge';
+
+		$uriparts = parse_url($uri);
+		if(!empty($extraInfos['icon'])) {
+			$icon = $extraInfos['icon'];
+		} else {
+			$icon = $this->xml_encode($uriparts['scheme'] . '://' . $uriparts['host'] .'/favicon.ico');
+		}
+
 		$uri = $this->xml_encode($uri);
 
 		$entries = '';
@@ -32,6 +39,16 @@ class AtomFormat extends FormatAbstract{
 				foreach($item['enclosures'] as $enclosure) {
 					$entryEnclosures .= '<link rel="enclosure" href="'
 					. $this->xml_encode($enclosure)
+					. '" type="' . getMimeType($enclosure) . '" />'
+					. PHP_EOL;
+				}
+			}
+
+			$entryCategories = '';
+			if(isset($item['categories'])) {
+				foreach($item['categories'] as $category) {
+					$entryCategories .= '<category term="'
+					. $this->xml_encode($category)
 					. '"/>'
 					. PHP_EOL;
 				}
@@ -49,6 +66,7 @@ class AtomFormat extends FormatAbstract{
 		<updated>{$entryTimestamp}</updated>
 		<content type="html">{$entryContent}</content>
 		{$entryEnclosures}
+		{$entryCategories}
 	</entry>
 
 EOD;

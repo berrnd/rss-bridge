@@ -8,7 +8,9 @@ class FileCache implements CacheInterface {
 	protected $param;
 
 	public function loadData(){
-		return unserialize(file_get_contents($this->getCacheFile()));
+		if(file_exists($this->getCacheFile())) {
+			return unserialize(file_get_contents($this->getCacheFile()));
+		}
 	}
 
 	public function saveData($datas){
@@ -17,7 +19,7 @@ class FileCache implements CacheInterface {
 		$writeStream = file_put_contents($this->getCacheFile(), serialize($datas));
 
 		if($writeStream === false) {
-			throw new \Exception("Cannot write the cache... Do you have the right permissions ?");
+			throw new \Exception('Cannot write the cache... Do you have the right permissions ?');
 		}
 
 		return $this;
@@ -25,6 +27,7 @@ class FileCache implements CacheInterface {
 
 	public function getTime(){
 		$cacheFile = $this->getCacheFile();
+		clearstatcache(false, $cacheFile);
 		if(file_exists($cacheFile)) {
 			return filemtime($cacheFile);
 		}

@@ -17,22 +17,12 @@ class FB2Bridge extends BridgeAbstract {
 
 	public function collectData(){
 
-		function extractFromDelimiters($string, $start, $end){
-			if(strpos($string, $start) !== false) {
-				$section_retrieved = substr($string, strpos($string, $start) + strlen($start));
-				$section_retrieved = substr($section_retrieved, 0, strpos($section_retrieved, $end));
-				return $section_retrieved;
-			}
-
-			return false;
-		}
-
 		//Utility function for cleaning a Facebook link
 		$unescape_fb_link = function($matches){
 			if(is_array($matches) && count($matches) > 1) {
 				$link = $matches[1];
 				if(strpos($link, '/') === 0)
-					$link = self::URI . $link . '"';
+					$link = self::URI . substr($link, 1);
 				if(strpos($link, 'facebook.com/l.php?u=') !== false)
 					$link = urldecode(extractFromDelimiters($link, 'facebook.com/l.php?u=', '&'));
 				return ' href="' . $link . '"';
@@ -95,7 +85,7 @@ EOD;
 		. $pageID
 		. '&cursor={"card_id"%3A"videos"%2C"has_next_page"%3Atrue}&surface=mobile_page_home&unit_count=8';
 
-		$fileContent = file_get_contents($requestString);
+		$fileContent = getContents($requestString);
 
 		$articleIndex = 0;
 		$maxArticle = 3;
@@ -103,23 +93,23 @@ EOD;
 		$html = $this->buildContent($fileContent);
 		$author = $this->getInput('u');
 
-		foreach($html->find("article") as $content) {
+		foreach($html->find('article') as $content) {
 
 			$item = array();
 
-			$item['uri'] = "http://touch.facebook.com"
-			. $content->find("div[class='_52jc _5qc4 _24u0 _36xo']", 0)->find("a", 0)->getAttribute("href");
+			$item['uri'] = 'http://touch.facebook.com'
+			. $content->find("div[class='_52jc _5qc4 _24u0 _36xo']", 0)->find('a', 0)->getAttribute('href');
 
-			if($content->find("header", 0) !== null) {
-				$content->find("header", 0)->innertext = "";
+			if($content->find('header', 0) !== null) {
+				$content->find('header', 0)->innertext = '';
 			}
 
-			if($content->find("footer", 0) !== null) {
-				$content->find("footer", 0)->innertext = "";
+			if($content->find('footer', 0) !== null) {
+				$content->find('footer', 0)->innertext = '';
 			}
 
 			//Remove html nodes, keep only img, links, basic formatting
-			$content = strip_tags($content, '<a><img><i><u><br><p>');
+			$content = strip_tags($content, '<a><img><i><u><br><p><h3><h4>');
 
 			//Adapt link hrefs: convert relative links into absolute links and bypass external link redirection
 			$content = preg_replace_callback('/ href=\"([^"]+)\"/i', $unescape_fb_link, $content);
@@ -168,7 +158,7 @@ EOD;
 		$regex = implode(
 			'',
 			array(
-				"/timeline_unit",
+				'/timeline_unit',
 				"\\\\\\\\u00253A1",
 				"\\\\\\\\u00253A([0-9]*)",
 				"\\\\\\\\u00253A([0-9]*)",
@@ -182,29 +172,29 @@ EOD;
 		return implode(
 			'',
 			array(
-				"https://touch.facebook.com/pages_reaction_units/more/?page_id=",
+				'https://touch.facebook.com/pages_reaction_units/more/?page_id=',
 				$pageID,
-				"&cursor=%7B%22timeline_cursor%22%3A%22timeline_unit%3A1%3A",
+				'&cursor=%7B%22timeline_cursor%22%3A%22timeline_unit%3A1%3A',
 				$result[1],
-				"%3A",
+				'%3A',
 				$result[2],
-				"%3A",
+				'%3A',
 				$result[3],
-				"%3A",
+				'%3A',
 				$result[4],
-				"%22%2C%22timeline_section_cursor%22%3A%7B%7D%2C%22",
-				"has_next_page%22%3Atrue%7D&surface=mobile_page_home&unit_count=3"
+				'%22%2C%22timeline_section_cursor%22%3A%7B%7D%2C%22',
+				'has_next_page%22%3Atrue%7D&surface=mobile_page_home&unit_count=3'
 			)
 		);
 	}
 
 	//Builds the HTML from the encoded JS that Facebook provides.
 	private function buildContent($pageContent){
-
-		$regex = "/\\\"html\\\":\\\"(.*?)\\\",\\\"replace/";
+		// The html ends with:
+		// /div>","replaceifexists
+		$regex = '/\\"html\\":(\".+\/div>"),"replace/';
 		preg_match($regex, $pageContent, $result);
-
-		return str_get_html(html_entity_decode(json_decode('"' . $result[1] . '"')));
+		return str_get_html(html_entity_decode(json_decode($result[1])));
 	}
 
 
@@ -214,7 +204,7 @@ EOD;
 
 		$ctx = stream_context_create(array(
 			'http' => array(
-				'user_agent' => "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:46.0) Gecko/20100101 Firefox/46.0",
+				'user_agent' => 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:46.0) Gecko/20100101 Firefox/46.0',
 				'Accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
 				)
 			)
@@ -222,12 +212,12 @@ EOD;
 		$a = file_get_contents($pageURL, 0, $ctx);
 
 		//First request to get the cookie
-		$cookies = "";
+		$cookies = '';
 		foreach($http_response_header as $hdr) {
-			if(strpos($hdr, "Set-Cookie") !== false) {
-				$cLine = explode(":", $hdr)[1];
-				$cLine = explode(";", $cLine)[0];
-				$cookies .= ";" . $cLine;
+			if(strpos($hdr, 'Set-Cookie') !== false) {
+				$cLine = explode(':', $hdr)[1];
+				$cLine = explode(';', $cLine)[0];
+				$cookies .= ';' . $cLine;
 			}
 		}
 
@@ -239,7 +229,7 @@ EOD;
 
 		$context = stream_context_create(array(
 			'http' => array(
-				'user_agent' => "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:46.0) Gecko/20100101 Firefox/46.0",
+				'user_agent' => 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:46.0) Gecko/20100101 Firefox/46.0',
 				'header' => 'Cookie: ' . $cookies
 				)
 			)
@@ -247,12 +237,12 @@ EOD;
 
 		$pageContent = file_get_contents($page, 0, $context);
 
-		if(strpos($pageContent, "signup-button") != false) {
+		if(strpos($pageContent, 'signup-button') != false) {
 			return -1;
 		}
 
 		//Get the page ID if we don't have a captcha
-		$regex = "/page_id=([0-9]*)&/";
+		$regex = '/page_id=([0-9]*)&/';
 		preg_match($regex, $pageContent, $matches);
 
 		if(count($matches) > 0) {
@@ -260,7 +250,7 @@ EOD;
 		}
 
 		//Get the page ID if we do have a captcha
-		$regex = "/\"pageID\":\"([0-9]*)\"/";
+		$regex = '/"pageID":"([0-9]*)"/';
 		preg_match($regex, $pageContent, $matches);
 
 		return $matches[1];
@@ -275,7 +265,4 @@ EOD;
 		return 'http://facebook.com';
 	}
 
-	public function getCacheDuration(){
-		return 60 * 60 * 3; // 5 minutes
-	}
 }

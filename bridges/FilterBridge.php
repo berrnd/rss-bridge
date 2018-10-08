@@ -6,6 +6,7 @@ class FilterBridge extends FeedExpander {
 	const NAME = 'Filter';
 	const CACHE_TIMEOUT = 3600; // 1h
 	const DESCRIPTION = 'Filters a feed of your choice';
+	const URI = 'https://github.com/rss-bridge/rss-bridge';
 
 	const PARAMETERS = array(array(
 		'url' => array(
@@ -26,10 +27,33 @@ class FilterBridge extends FeedExpander {
 			),
 			'defaultValue' => 'permit',
 		),
+		'title_from_content' => array(
+			'name' => 'Generate title from content',
+			'type' => 'checkbox',
+			'required' => false,
+		)
 	));
 
 	protected function parseItem($newItem){
 		$item = parent::parseItem($newItem);
+
+		if($this->getInput('title_from_content') && array_key_exists('content', $item)) {
+
+			$content = str_get_html($item['content']);
+
+			$pos = strpos($item['content'], ' ', 50);
+
+			$item['title'] = substr(
+				$content->plaintext,
+				0,
+				$pos
+			);
+
+			if(strlen($content->plaintext) >= $pos) {
+				$item['title'] .= '...';
+			}
+
+		}
 
 		switch(true) {
 		case $this->getFilterType() === 'permit':
