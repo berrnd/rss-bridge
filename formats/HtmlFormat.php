@@ -1,40 +1,52 @@
 <?php
 class HtmlFormat extends FormatAbstract {
-
 	public function stringify(){
 		$extraInfos = $this->getExtraInfos();
 		$title = htmlspecialchars($extraInfos['name']);
 		$uri = htmlspecialchars($extraInfos['uri']);
-		$atomquery = str_replace('format=Html', 'format=Atom', htmlentities($_SERVER['QUERY_STRING']));
-		$mrssquery = str_replace('format=Html', 'format=Mrss', htmlentities($_SERVER['QUERY_STRING']));
+
+		// Dynamically build buttons for all formats (except HTML)
+		$formatFac = new FormatFactory();
+		$formatFac->setWorkingDir(PATH_LIB_FORMATS);
+
+		$buttons = '';
+
+		foreach($formatFac->getFormatNames() as $format) {
+			if(strcasecmp($format, 'HTML') === 0) {
+				continue;
+			}
+
+			$query = str_replace('format=Html', 'format=' . $format, htmlentities($_SERVER['QUERY_STRING']));
+			$buttons .= $this->buildButton($format, $query) . PHP_EOL;
+		}
 
 		$entries = '';
 		foreach($this->getItems() as $item) {
-			$entryAuthor = isset($item['author']) ? '<br /><p class="author">by: ' . $item['author'] . '</p>' : '';
-			$entryTitle = isset($item['title']) ? $this->sanitizeHtml(strip_tags($item['title'])) : '';
-			$entryUri = isset($item['uri']) ? $item['uri'] : $uri;
+			$entryAuthor = $item->getAuthor() ? '<br /><p class="author">by: ' . $item->getAuthor() . '</p>' : '';
+			$entryTitle = $this->sanitizeHtml(strip_tags($item->getTitle()));
+			$entryUri = $item->getURI() ?: $uri;
 
 			$entryTimestamp = '';
-			if(isset($item['timestamp'])) {
+			if($item->getTimestamp()) {
 				$entryTimestamp = '<time datetime="'
-				. date(DATE_ATOM, $item['timestamp'])
+				. date(DATE_ATOM, $item->getTimestamp())
 				. '">'
-				. date(DATE_ATOM, $item['timestamp'])
+				. date(DATE_ATOM, $item->getTimestamp())
 				. '</time>';
 			}
 
 			$entryContent = '';
-			if(isset($item['content'])) {
+			if($item->getContent()) {
 				$entryContent = '<div class="content">'
-				. $this->sanitizeHtml($item['content'])
+				. $this->sanitizeHtml($item->getContent())
 				. '</div>';
 			}
 
 			$entryEnclosures = '';
-			if(isset($item['enclosures'])) {
+			if(!empty($item->getEnclosures())) {
 				$entryEnclosures = '<div class="attachments"><p>Attachments:</p>';
 
-				foreach($item['enclosures'] as $enclosure) {
+				foreach($item->getEnclosures() as $enclosure) {
 					$url = $this->sanitizeHtml($enclosure);
 
 					$entryEnclosures .= '<li class="enclosure"><a href="'
@@ -48,10 +60,10 @@ class HtmlFormat extends FormatAbstract {
 			}
 
 			$entryCategories = '';
-			if(isset($item['categories']) && count($item['categories']) > 0) {
+			if(!empty($item->getCategories())) {
 				$entryCategories = '<div class="categories"><p>Categories:</p>';
 
-				foreach($item['categories'] as $category) {
+				foreach($item->getCategories() as $category) {
 
 					$entryCategories .= '<li class="category">'
 					. $this->sanitizeHtml($category)
@@ -83,18 +95,17 @@ EOD;
 <html>
 <head>
 	<meta charset="{$charset}">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 	<title>{$title}</title>
 	<link href="static/HtmlFormat.css" rel="stylesheet">
-	<link rel="alternate" type="application/atom+xml" title="Atom" href="./?{$atomquery}" />
-	<link rel="alternate" type="application/rss+xml" title="RSS" href="/?{$mrssquery}" />
+	<link rel="icon" type="image/png" href="static/favicon.png">
 	<meta name="robots" content="noindex, follow">
 </head>
 <body>
 	<h1 class="pagetitle"><a href="{$uri}" target="_blank">{$title}</a></h1>
 	<div class="buttons">
 		<a href="./#bridge-{$_GET['bridge']}"><button class="backbutton">← back to rss-bridge</button></a>
-		<a href="./?{$atomquery}"><button class="rss-feed">RSS feed (ATOM)</button></a>
-		<a href="./?{$mrssquery}"><button class="rss-feed">RSS feed (MRSS)</button></a>
+		{$buttons}
 	</div>
 {$entries}
 </body>
@@ -113,5 +124,11 @@ EOD;
 			->callContentType();
 
 		return parent::display();
+	}
+
+	private function buildButton($format, $query) {
+		return <<<EOD
+<a href="./?{$query}"><button class="rss-feed">{$format}</button></a>
+EOD;
 	}
 }
