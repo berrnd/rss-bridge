@@ -142,7 +142,11 @@ class FacebookBridge extends BridgeAbstract {
 
 	private function collectGroupData() {
 
-		$header = array('Accept-Language: ' . getEnv('HTTP_ACCEPT_LANGUAGE') . "\r\n");
+		if(getEnv('HTTP_ACCEPT_LANGUAGE')) {
+			$header = array('Accept-Language: ' . getEnv('HTTP_ACCEPT_LANGUAGE'));
+		} else {
+			$header = array();
+		}
 
 		$html = getSimpleHTMLDOM($this->getURI(), $header)
 			or returnServerError('Failed loading facebook page: ' . $this->getURI());
@@ -505,7 +509,11 @@ EOD;
 		// Retrieve page contents
 		if(is_null($html)) {
 
-			$header = array('Accept-Language: ' . getEnv('HTTP_ACCEPT_LANGUAGE'));
+			if(getEnv('HTTP_ACCEPT_LANGUAGE')) {
+				$header = array('Accept-Language: ' . getEnv('HTTP_ACCEPT_LANGUAGE'));
+			} else {
+				$header = array();
+			}
 
 			$html = getSimpleHTMLDOM($this->getURI(), $header)
 				or returnServerError('No results for this query.');
@@ -580,6 +588,8 @@ EOD;
 							'._5mly', // Remove embedded videos (the preview image remains)
 							'._2ezg', // Remove "Views ..."
 							'.hidden_elem', // Remove hidden elements (they are hidden anyway)
+							'.timestampContent', // Remove relative timestamp
+							'._6spk', // Remove redundant separator
 						);
 
 						foreach($content_filters as $filter) {
