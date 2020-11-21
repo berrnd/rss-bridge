@@ -4,6 +4,7 @@ class TwitterBridge extends BridgeAbstract {
 	const URI = 'https://twitter.com/';
 	const API_URI = 'https://api.twitter.com';
 	const GUEST_TOKEN_USES = 100;
+	const GUEST_TOKEN_EXPIRY = 300; // 5min
 	const CACHE_TIMEOUT = 300; // 5min
 	const DESCRIPTION = 'returns tweets';
 	const MAINTAINER = 'pmaziere';
@@ -94,6 +95,20 @@ EOD
 				'required' => false,
 				'title' => 'Specify term to search for'
 			)
+		),
+		'By list ID' => array(
+			'listid' => array(
+				'name' => 'List ID',
+				'exampleValue' => '31748',
+				'required' => true,
+				'title' => 'Insert the list id'
+			),
+			'filter' => array(
+				'name' => 'Filter',
+				'exampleValue' => '#rss-bridge',
+				'required' => false,
+				'title' => 'Specify term to search for'
+			)
 		)
 	);
 
@@ -144,6 +159,8 @@ EOD
 			break;
 		case 'By list':
 			return $this->getInput('list') . ' - Twitter list by ' . $this->getInput('user');
+		case 'By list ID':
+			return 'Twitter List #' . $this->getInput('listid');
 		default: return parent::getName();
 		}
 		return 'Twitter ' . $specific . $this->getInput($param);
@@ -166,6 +183,10 @@ EOD
 			. urlencode($this->getInput('user'))
 			. '/lists/'
 			. str_replace(' ', '-', strtolower($this->getInput('list')));
+		case 'By list ID':
+			return self::URI
+			. 'i/lists/'
+			. urlencode($this->getInput('listid'));
 		default: return parent::getURI();
 		}
 	}
@@ -176,7 +197,7 @@ EOD
 			return self::API_URI
 			. '/2/search/adaptive.json?q='
 			. urlencode($this->getInput('q'))
-			. '&tweet_mode=extended';
+			. '&tweet_mode=extended&tweet_search_mode=live';
 		case 'By username':
 			return self::API_URI
 			. '/2/timeline/profile/'
@@ -187,6 +208,11 @@ EOD
 			. '/2/timeline/list.json?list_id='
 			. $this->getListId($this->getInput('user'), $this->getInput('list'))
 			. '&tweet_mode=extended';
+		case 'By list ID':
+			return self::API_URI
+			. '/2/timeline/list.json?list_id='
+			. $this->getInput('listid')
+			. '&tweet_mode=extended';
 		default: returnServerError('Invalid query context !');
 		}
 	}
@@ -194,11 +220,6 @@ EOD
 	public function collectData(){
 		$html = '';
 		$page = $this->getURI();
-
-		$header = array(
-			'User-Agent: Mozilla/5.0 (Windows NT 9.0; WOW64; Trident/7.0; rv:11.0) like Gecko'
-		);
-
 		$data = json_decode($this->getApiContents($this->getApiURI()));
 
 		if(!$data) {
@@ -214,11 +235,27 @@ EOD
 
 		$hidePictures = $this->getInput('nopic');
 
+		$promotedTweetIds = array_reduce($data->timeline->instructions[0]->addEntries->entries, function($carry, $entry) {
+			if (!isset($entry->content->item)) {
+				return $carry;
+			}
+			$tweet = $entry->content->item->content->tweet;
+			if (isset($tweet->promotedMetadata)) {
+				$carry[] = $tweet->id;
+			}
+			return $carry;
+		}, array());
+
 		foreach($data->globalObjects->tweets as $tweet) {
 
-			// Skip retweets?
-			if($this->getInput('noretweet')
-			&& isset($tweet->retweeted_status_id_str)) {
+			/* Debug::log('>>> ' . json_encode($tweet)); */
+			// Skip spurious retweets
+			if (isset($tweet->retweeted_status_id_str) && substr($tweet->full_text, 0, 4) === 'RT @') {
+				continue;
+			}
+
+			// Skip promoted tweets
+			if (in_array($tweet->id_str, $promotedTweetIds)) {
 				continue;
 			}
 
@@ -229,6 +266,9 @@ EOD
 			$item['username'] = $user_info->screen_name;
 			$item['fullname'] = $user_info->name;
 			$item['author'] = $item['fullname'] . ' (@' . $item['username'] . ')';
+			if (null !== $this->getInput('u') && $item['username'] != $this->getInput('u')) {
+				$item['author'] .= ' RT: @' . $this->getInput('u');
+			}
 			$item['avatar'] = $user_info->profile_image_url_https;
 
 			$item['id'] = $tweet->id_str;
@@ -236,9 +276,37 @@ EOD
 			// extract tweet timestamp
 			$item['timestamp'] = $tweet->created_at;
 
+			// Convert plain text URLs into HTML hyperlinks
+			$cleanedTweet = $tweet->full_text;
+			$foundUrls = false;
+
+			if (isset($tweet->entities->media)) {
+				foreach($tweet->entities->media as $media) {
+					$cleanedTweet = str_replace($media->url,
+						'<a href="' . $media->expanded_url . '">' . $media->display_url . '</a>',
+						$cleanedTweet);
+					$foundUrls = true;
+				}
+			}
+			if (isset($tweet->entities->urls)) {
+				foreach($tweet->entities->urls as $url) {
+					$cleanedTweet = str_replace($url->url,
+						'<a href="' . $url->expanded_url . '">' . $url->display_url . '</a>',
+						$cleanedTweet);
+					$foundUrls = true;
+				}
+			}
+			if ($foundUrls === false) {
+				// fallback to regex'es
+				$reg_ex = '/(http|https|ftp|ftps)\:\/\/[a-zA-Z0-9\-\.]+\.[a-zA-Z]{2,3}(\/\S*)?/';
+				if(preg_match($reg_ex, $tweet->full_text, $url)) {
+					$cleanedTweet = preg_replace($reg_ex,
+						"<a href='{$url[0]}' target='_blank'>{$url[0]}</a> ",
+						$cleanedTweet);
+				}
+			}
 			// generate the title
-			$item['title'] = $tweet->full_text;
-			$cleanedTweet  = $tweet->full_text;
+			$item['title'] = strip_tags($cleanedTweet);
 
 			// Add avatar
 			$picture_html = '';
@@ -311,11 +379,17 @@ EOD;
 
 			switch($this->queriedContext) {
 				case 'By list':
+				case 'By list ID':
 					// Check if filter applies to list (using raw content)
 					if($this->getInput('filter')) {
 						if(stripos($cleanedTweet, $this->getInput('filter')) === false) {
 							continue 2; // switch + for-loop!
 						}
+					}
+					break;
+				case 'By username':
+					if ($this->getInput('noretweet') && $item['username'] != $this->getInput('u')) {
+						continue 2; // switch + for-loop!
 					}
 					break;
 				default:
@@ -352,18 +426,46 @@ EOD;
 
 		$cacheFac = new CacheFactory();
 		$cacheFac->setWorkingDir(PATH_LIB_CACHES);
+		$r_cache = $cacheFac->create(Configuration::getConfig('cache', 'type'));
+		$r_cache->setScope(get_called_class());
+		$r_cache->setKey(array('refresh'));
+		$data = $r_cache->loadData();
+
+		$refresh = null;
+		if($data === null) {
+			$refresh = time();
+			$r_cache->saveData($refresh);
+		} else {
+			$refresh = $data;
+		}
+
+		$cacheFac = new CacheFactory();
+		$cacheFac->setWorkingDir(PATH_LIB_CACHES);
 		$cache = $cacheFac->create(Configuration::getConfig('cache', 'type'));
 		$cache->setScope(get_called_class());
 		$cache->setKey(array('api_key'));
 		$data = $cache->loadData();
 
 		$apiKey = null;
-		if($data === null || !is_array($data) || count($data) != 1) {
+		if($data === null || (time() - $refresh) > self::GUEST_TOKEN_EXPIRY) {
 			$twitterPage = getContents('https://twitter.com');
 
-			$jsMainRegex = '/(https:\/\/abs\.twimg\.com\/responsive-web\/web\/main\.[^\.]+\.js)/m';
-			preg_match_all($jsMainRegex, $twitterPage, $jsMainMatches, PREG_SET_ORDER, 0);
-			$jsLink = $jsMainMatches[0][0];
+			$jsLink = false;
+			$jsMainRegexArray = array(
+				'/(https:\/\/abs\.twimg\.com\/responsive-web\/web\/main\.[^\.]+\.js)/m',
+				'/(https:\/\/abs\.twimg\.com\/responsive-web\/web_legacy\/main\.[^\.]+\.js)/m',
+				'/(https:\/\/abs\.twimg\.com\/responsive-web\/client-web\/main\.[^\.]+\.js)/m',
+				'/(https:\/\/abs\.twimg\.com\/responsive-web\/client-web-legacy\/main\.[^\.]+\.js)/m',
+			);
+			foreach ($jsMainRegexArray as $jsMainRegex) {
+				if (preg_match_all($jsMainRegex, $twitterPage, $jsMainMatches, PREG_SET_ORDER, 0)) {
+					$jsLink = $jsMainMatches[0][0];
+					break;
+				}
+			}
+			if (!$jsLink) {
+				 returnServerError('Could not locate main.js link');
+			}
 
 			$jsContent = getContents($jsLink);
 			$apiKeyRegex = '/([a-zA-Z0-9]{59}%[a-zA-Z0-9]{44})/m';
@@ -382,9 +484,11 @@ EOD;
 		$guestTokenUses = $gt_cache->loadData();
 
 		$guestToken = null;
-		if($guestTokenUses === null || !is_array($guestTokenUses) || count($guestTokenUses) != 2 || $guestTokenUses[0] <= 0) {
+		if($guestTokenUses === null || !is_array($guestTokenUses) || count($guestTokenUses) != 2
+		|| $guestTokenUses[0] <= 0 || (time() - $refresh) > self::GUEST_TOKEN_EXPIRY) {
 			$guestToken = $this->getGuestToken();
 			$gt_cache->saveData(array(self::GUEST_TOKEN_USES, $guestToken));
+			$r_cache->saveData(time());
 		} else {
 			$guestTokenUses[0] -= 1;
 			$gt_cache->saveData($guestTokenUses);
@@ -398,10 +502,13 @@ EOD;
 	// Get a guest token. This is different to an API key,
 	// and it seems to change more regularly than the API key.
 	private function getGuestToken() {
-		$pageContent = getContents('https://twitter.com');
+		$pageContent = getContents('https://twitter.com', array(), array(), true);
 
 		$guestTokenRegex = '/gt=([0-9]*)/m';
-		preg_match_all($guestTokenRegex, $pageContent, $guestTokenMatches, PREG_SET_ORDER, 0);
+		preg_match_all($guestTokenRegex, $pageContent['header'], $guestTokenMatches, PREG_SET_ORDER, 0);
+		if (!$guestTokenMatches)
+				preg_match_all($guestTokenRegex, $pageContent['content'], $guestTokenMatches, PREG_SET_ORDER, 0);
+		if (!$guestTokenMatches) returnServerError('Could not parse guest token');
 		$guestToken = $guestTokenMatches[0][1];
 		return $guestToken;
 	}
