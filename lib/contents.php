@@ -198,8 +198,7 @@ EOD
 			if($lastError !== null)
 				$lastError = $lastError['message'];
 			returnError(<<<EOD
-The requested resource cannot be found!
-Please make sure your input parameters are correct!
+Unexpected response from upstream.
 cUrl error: $curlError ($curlErrno)
 PHP error: $lastError
 EOD
@@ -312,7 +311,7 @@ function getSimpleHTMLDOMCached($url,
 	$time = $cache->getTime();
 	if($time !== false
 	&& (time() - $duration < $time)
-	&& Debug::isEnabled()) { // Contents within duration
+	&& !Debug::isEnabled()) { // Contents within duration
 		$content = $cache->loadData();
 	} else { // Content not within duration
 		$content = getContents($url, $header, $opts);
